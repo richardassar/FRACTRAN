@@ -1,11 +1,15 @@
 # fractran
 
-![Multiway graphs of six FRACTRAN programs, coloured by depth](assets/hero.png)
+![Depth-coloured multiway graphs of six FRACTRAN programs — fibonacci, the Lomont self-interpreter, PIGAME, PRIMEGAME, Conway's multiplier, and RHGAME. Each vertex is an integer state, each edge a fraction firing, and colour is BFS depth from the start.](assets/hero.png)
+
+<sub>*Multiway graphs of six FRACTRAN programs (left → right: `fibonacci`, the Lomont
+self-interpreter, `PIGAME`, `PRIMEGAME`, Conway's `MULTIPLY`, `RHGAME`). Every integer
+state is a vertex; every applicable fraction is an edge (faded dim→bright along its
+direction); colour is BFS depth from the start.*</sub>
 
 A complete FRACTRAN toolchain — interpreter, compiler, loop accelerator, native
 C++/GMP core, a self-interpreter, and a pile of runnable I/O programs — built up
-from Conway's "just multiply fractions." The banner: the multiway graphs of six
-programs (fire every applicable fraction at every state), coloured by BFS depth.
+from Conway's "just multiply fractions."
 
 ## What is FRACTRAN?
 

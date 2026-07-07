@@ -410,35 +410,41 @@ def graph_layout(nodes, efrac, seed=1, iterations=80):
                             k=1.4 / max(1, len(nodes) ** 0.5))
 
 
-def draw_graph(ax, nodes, efrac, pos, values, nfrac, style=STYLE):
-    """Shared renderer: fraction-coloured directed edges (dim tail -> bright head)
-    and nodes coloured by `values` through the style's node colormap."""
+def draw_graph(ax, nodes, efrac, pos, values, nfrac, style=STYLE, fade_steps=8):
+    """Shared renderer. Each directed edge is drawn in its fraction's colour as a
+    smooth brightness fade from a dim tail (source) to a bright head (target), so
+    direction reads without arrowheads; nodes are coloured by `values` through the
+    node colormap. Opacity is baked into the RGBA (edge/node alpha channels) so
+    ``Style.edge_alpha`` / ``Style.node_alpha`` apply exactly."""
     import numpy as np
     from matplotlib.collections import LineCollection
 
     nodes = list(nodes)
     ax.set_facecolor(_facecolor(style))
-    ecmap = plt.get_cmap(style.edge_cmap)
-    segs, cols = [], []
-    for (a, b), fi in efrac.items():
-        if a in pos and b in pos:
-            pa, pb = np.array(pos[a]), np.array(pos[b])
-            pm = (pa + pb) / 2
-            base = np.array(ecmap((fi % max(1, nfrac) + 0.5) / max(1, nfrac)))
-            tail = base.copy()
-            tail[:3] *= style.tail_dim
-            segs += [[pa, pm], [pm, pb]]
-            cols += [tail, base]
-    ax.add_collection(LineCollection(segs, colors=cols, linewidths=style.edge_lw,
-                                     alpha=style.edge_alpha, zorder=1))
+
+    ekeys = [(a, b, fi) for (a, b), fi in efrac.items() if a in pos and b in pos]
+    if ekeys:
+        A = np.array([pos[a] for a, b, fi in ekeys])                         # (E,2) sources
+        B = np.array([pos[b] for a, b, fi in ekeys])                         # (E,2) targets
+        base = plt.get_cmap(style.edge_cmap)(
+            [(fi % max(1, nfrac) + 0.5) / max(1, nfrac) for a, b, fi in ekeys])  # (E,4)
+        t = np.linspace(0.0, 1.0, fade_steps)
+        pts = A[:, None, :] * (1 - t)[None, :, None] + B[:, None, :] * t[None, :, None]  # (E,S,2)
+        segs = np.stack([pts[:, :-1], pts[:, 1:]], axis=2).reshape(-1, 2, 2)
+        bright = style.tail_dim + (1 - style.tail_dim) * ((t[:-1] + t[1:]) / 2)  # per sub-segment
+        cols = np.repeat(base[:, None, :], fade_steps - 1, axis=1)           # (E,S-1,4)
+        cols[..., :3] *= bright[None, :, None]
+        cols[..., 3] = style.edge_alpha
+        ax.add_collection(LineCollection(segs, colors=cols.reshape(-1, 4),
+                                         linewidths=style.edge_lw, zorder=1))
+
     v = np.array(values, float)
-    if v.max() > v.min():
-        vn = style.node_floor + (1 - style.node_floor) * (v - v.min()) / (v.max() - v.min())
-    else:
-        vn = np.full(len(v), 0.6)
+    vn = (style.node_floor + (1 - style.node_floor) * (v - v.min()) / (v.max() - v.min())
+          if v.size and v.max() > v.min() else np.full(len(nodes), 0.6))
+    ncol = plt.get_cmap(style.node_cmap)(vn)
+    ncol[:, 3] = style.node_alpha                                            # bake node opacity
     ax.scatter([pos[k][0] for k in nodes], [pos[k][1] for k in nodes],
-               c=plt.get_cmap(style.node_cmap)(vn), s=style.node_size, alpha=style.node_alpha,
-               edgecolors=_facecolor(style), linewidths=style.node_edge_lw, zorder=3)
+               c=ncol, s=style.node_size, edgecolors="none", zorder=3)
     ax.set_axis_off()
     ax.margins(0.03)
 
