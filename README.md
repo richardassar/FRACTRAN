@@ -112,4 +112,7 @@ Design notes, the module-by-module tour, the external gallery, and the roadmap
 live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical
 landscape — the prime-valuation lattice, p-adic and height dynamics, vector
 addition systems, binomial/toric ideals, universality, and where elliptic curves
-do and don't enter — is in **[theory.md](theory.md)**, with citations.
+do and don't enter — is in **[theory.md](theory.md)**, with citations. Deeper and
+more speculative threads — the Bost–Connes bridge to $\zeta$, the two Weils,
+continuum limits, and the toric geometry of program synthesis — are collected in
+**[explorations.md](explorations.md)**.
