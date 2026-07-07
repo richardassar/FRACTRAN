@@ -1,90 +1,23 @@
 # FRACTRAN — Explorations: statistical mechanics, continuum limits, Riemann
 
 *A companion to [theory.md](theory.md) collecting the deeper and more speculative
-threads: the Bost–Connes bridge to $\zeta$, the two objects named after Weil, the
-several continuum limits, spectral / Fourier structure, and RHGAME (Robin's
-inequality as a fraction list). Rigor level is flagged per item: **[established]**,
-**[heuristic]**, **[research direction]**.*
+threads: the two objects named after Weil, the several continuum limits,
+spectral / Fourier structure, and RHGAME (Robin's inequality as a fraction list).
+Rigor level is flagged per item: **[established]**, **[heuristic]**,
+**[research direction]**.*
 
 ---
 
-## 1. Two theorems of Weil, wearing the same surname
+## 1. The Weil height
 
-These are routinely conflated and are **not** the same object.
+**Weil height** (Diophantine geometry). $h(x)=\sum_v \log^+|x|_v$ summed over all
+places $v$; for a positive integer $h(n)=\log n=\sum_p v_p(n)\log p$
+[Bombieri–Gubler 2006]. This is the "size" a FRACTRAN step shifts by
+$\log(a/b)$ — the coordinate of `theory.md` §7, living on the **log-line of
+prime powers** $\{m\log p\}$: the height places mass $v_p(n)$ at position
+$\log p$.
 
-- **Weil height** (Diophantine geometry). $h(x)=\sum_v \log^+|x|_v$ summed over all
-  places $v$; for a positive integer $h(n)=\log n=\sum_p v_p(n)\log p$
-  [Bombieri–Gubler 2006]. This is the "size" a FRACTRAN step shifts by
-  $\log(a/b)$ — the coordinate of `theory.md` §7.
-
-- **Weil quadratic form / Weil positivity** (explicit formula; Connes–Consani).
-  RH $\iff$ positivity of the Weil functional $W(f\star f^{*})\ge 0$. The
-  finite **Weil matrices** are its Hermitian/Toeplitz truncations, whose
-  positive-semidefiniteness is what one certifies. Connes–Consani give a
-  conceptual proof of the positivity via the *semilocal trace formula* and
-  *prolate spheroidal wave functions*, controlling the error with Toeplitz-matrix
-  theory [Connes–Consani 2021, arXiv:2006.13771; Connes 2024].
-
-**No identity between them.** The one genuine shared structure is the coordinate:
-both live on the **log-line of prime powers** $\{m\log p\}$. The height places
-mass $v_p(n)$ at position $\log p$; the Weil functional's prime side
-$\sum_p\sum_m \frac{\log p}{p^{m/2}} f(m\log p)$ uses the same points as
-*evaluation nodes*. Shared skeleton, different use — a configuration versus a
-pairing. This is a shared coordinate, not a shared theorem.
-
-## 2. The Bost–Connes bridge — the connection that *is* real  **[established]**
-
-Where FRACTRAN and the Connes(-Consani) world actually meet is the **Bost–Connes
-system** [Bost–Connes 1995; Connes 1999]. It lives on $\ell^2(\mathbb{N}^\times)$
-with orthonormal basis $\{|n\rangle : n\ge 1\}$, Hamiltonian and partition
-function
-
-$$
-H\,|n\rangle=(\log n)\,|n\rangle,\qquad
-Z(\beta)=\operatorname{Tr} e^{-\beta H}=\sum_{n\ge 1} n^{-\beta}=\zeta(\beta),
-$$
-
-and the multiplicative semigroup $\mathbb{N}^{\times}\cong\bigoplus_p\mathbb{N}$
-realized by isometries $\mu_n$ ("multiply by $n$"), with a phase transition at
-$\beta=1$ (the pole of $\zeta$) and symmetry group
-$\operatorname{Gal}(\mathbb{Q}^{\mathrm{ab}}/\mathbb{Q})=\hat{\mathbb{Z}}^{\times}$.
-
-**FRACTRAN lives on exactly this space.** Its states are the same $|n\rangle$;
-its moves are words in $\mu_p,\mu_p^{*}$ (multiply / divide by primes) acting on
-the prime-exponent lattice; and the FRACTRAN **height $\log n=\sum_p v_p(n)\log p$
-is precisely the Bost–Connes Hamiltonian eigenvalue.** Hence:
-
-> **FRACTRAN = deterministic *computation* on $\ell^2(\mathbb{N}^\times)$;
-> Bost–Connes = the equilibrium *statistical mechanics* of the same space.**
-
-One follows a single trajectory chosen by guards + priority; the other is the
-Gibbs ensemble whose partition function is $\zeta$. The Euler product
-$\zeta=\prod_p(1-p^{-\beta})^{-1}$ factorizes over exactly the FRACTRAN *registers*
-(the primes), because the $\mu_p$ are free generators. The Galois symmetry, KMS
-states, and phase transition are ensemble features a single FRACTRAN run does not
-see, but the underlying arithmetic monoid is identical.
-
-**Where the bridge stops.** The Weil positivity / Weil matrices are a further
-analytic layer — the spectral realization of the zeros — that FRACTRAN does not
-touch. Correspondingly:
-
-| object | connection to FRACTRAN |
-|---|---|
-| Weil **height** | **yes** — the Bost–Connes energy $\log n$; the log-prime-power line |
-| Bost–Connes system | **yes** — same $\ell^2(\mathbb{N}^\times)$, same $\mu_p$, $\zeta$ = partition function |
-| Weil **quadratic form / matrices / positivity** | **no direct link** — spectral/analytic; FRACTRAN is combinatorial |
-
-**The RH tension.** FRACTRAN's own contact with RH is the *elementary–computational*
-one: an "RHGAME" that halts iff a Robin/Lagarias counterexample exists
-[Robin 1984; Lagarias 2002], i.e. RH $\iff$ that fraction list never halts — the
-same idea as Yedidia–Aaronson's explicit RH Turing machine [Yedidia–Aaronson
-2016] and the Davis–Matiyasevich–Robinson Diophantine route. That is a *different
-attack* from Connes–Consani's spectral–geometric one, yet both pass through the
-same monoid $\mathbb{N}^{\times}$. FRACTRAN makes the *isometries $\mu_n$* concrete
-as computation; Connes–Consani study the *spectral geometry* of the same
-operators. Bost–Connes is the hinge.
-
-## 3. Continuum limits
+## 2. Continuum limits
 
 Several natural continuum limits, in the spirit of the "geometry of program
 synthesis" [Clift–Murfet–Wallbridge 2021].
@@ -145,7 +78,7 @@ three completions of the same discrete lattice machine.
 
 ## 4. Spectral structure — graph Fourier as the Pontryagin transform
 
-The nondeterministic reachability graph of §3 (fire any applicable fraction) is
+The nondeterministic reachability graph of §2 (fire any applicable fraction) is
 exactly a **multiway system** in Wolfram's sense; doing graph signal processing on
 it is graph Fourier analysis of a FRACTRAN machine [Shuman et al. 2013; Ortega et
 al. 2018; Sandryhaila–Moura 2013]. The point of this section is that on FRACTRAN
@@ -182,22 +115,21 @@ This threads through the earlier sections:
    Wiener–Hopf / random walks in a cone).
 
 2. **Dual torus and Kronecker flow.  [established]**  $\hat G=\mathbb{T}^{\infty}$
-   is the character group of $\mathbb{Q}_{>0}$ — the free-part sibling of the
-   $\hat{\mathbb{Z}}$ in Bost–Connes (§2). Under Fourier $v_p\leftrightarrow\tfrac{1}{2\pi i}\partial_{\theta_p}$,
-   so the height / Bost–Connes Hamiltonian becomes
+   is the character group of $\mathbb{Q}_{>0}$. Under Fourier $v_p\leftrightarrow\tfrac{1}{2\pi i}\partial_{\theta_p}$,
+   the height Hamiltonian becomes
    $\widehat H=\tfrac{1}{2\pi i}\sum_p(\log p)\,\partial_{\theta_p}$, the generator of a
    **Kronecker flow on $\mathbb{T}^\infty$** with velocity $(\log p)_p$. Since the
    $\log p$ are $\mathbb{Q}$-independent the flow is minimal and uniquely ergodic
-   (equidistribution, Weyl), and $e^{it\widehat H}$ is the Bost–Connes time
-   evolution $n\mapsto n^{it}$. Graph Fourier lands the height dynamics on the
+   (equidistribution, Weyl), and $e^{it\widehat H}$ is the time evolution
+   $n\mapsto n^{it}$. Graph Fourier lands the height dynamics on the
    arithmetic torus.
 
 3. **Low frequencies = the continuum limit.  [established]**  Near $\boldsymbol\theta=0$,
    $\lambda(\boldsymbol\theta)=|S|+2\pi i\langle\boldsymbol\theta,\sum_i\boldsymbol\delta_i\rangle
    -2\pi^2\sum_i\langle\boldsymbol\theta,\boldsymbol\delta_i\rangle^2+\cdots$: the first-order
-   term is the **drift** $\sum_i\boldsymbol\delta_i$ (§3B, the Collatz $\tfrac12\log\tfrac34$),
+   term is the **drift** $\sum_i\boldsymbol\delta_i$ (§2B, the Collatz $\tfrac12\log\tfrac34$),
    the second is the **diffusion** — the advection–diffusion coefficients of the
-   transport PDE (§3C). Low GFT modes are the fluid limit; high modes the machine.
+   transport PDE (§2C). Low GFT modes are the fluid limit; high modes the machine.
 
 4. **The dispersion is the toric Laurent polynomial.  [established]**  $\lambda(\boldsymbol\theta)=\sum_i z^{\boldsymbol\delta_i}$
    lives in the coordinate ring of the torus; its **Newton polytope is the convex
@@ -207,7 +139,7 @@ This threads through the earlier sections:
 5. **Collatz's diagonalization is $2$-adic (Walsh).  [established]**  The
    Bernstein–Lagarias conjugacy to the $2$-adic shift *is* a Fourier
    diagonalization in the $2$-adic character (Walsh) basis — "the GFT of Collatz"
-   is Walsh–Fourier on the $2$-adic completion (§3E).
+   is Walsh–Fourier on the $2$-adic completion (§2E).
 
 6. **The multiway graph's GFT (numerical).  [buildable]**  For a finite
    reachability box, the symmetric graph Laplacian's **zero modes = connected
@@ -221,13 +153,13 @@ This threads through the earlier sections:
 translations, its graph Fourier transform is harmonic analysis on
 $\bigoplus_p\mathbb{Z}$: the bulk diagonalizes to a phonon dispersion (a toric
 Laurent polynomial), the dual is the arithmetic torus where the height runs as an
-ergodic Kronecker flow (the Bost–Connes evolution), the low frequencies give the
-fluid continuum limit, and the computational hardness is pushed entirely into the
-orthant boundary conditions. Computed by `fractran/spectral.py`.
+ergodic Kronecker flow, the low frequencies give the fluid continuum limit, and
+the computational hardness is pushed entirely into the orthant boundary
+conditions. Computed by `fractran/spectral.py`.
 
 ---
 
-## 5. RHGAME — Robin's inequality as a fraction list
+## 4. RHGAME — Robin's inequality as a fraction list
 
 **The construction.**  Robin's theorem [Robin 1984]: RH $\iff
 \sigma(n)<e^{\gamma}\,n\,\ln\ln n$ for all $n>5040$, where $\sigma$ is the
@@ -262,26 +194,13 @@ such as the Mertens conjecture $|M(n)|<\sqrt n$, disproved by Odlyzko–te Riele
 RHGAME's value is as a concrete artifact: RH as a specific, runnable object on the
 shared monoid $\mathbb{N}^{\times}$.
 
-**Related spectral structure.**  The analytic machinery around RH — the zeta
-zeros, the explicit formula, Weil positivity — lives on the spectral side: the
-Bost–Connes / Connes–Consani programme (§2) and the graph-Fourier picture (§4).
-Those spectral tools are implemented in `fractran/spectral.py` (`laplacian_modes`,
-`fiedler`, `dispersion_grid`) and the fluid limit of §3C in
-`fractran/continuum.py`; `modes_demo.py` and `continuum_demo.py` confirm
-zero-drift $\leftrightarrow$ height-stability and zero-modes $\leftrightarrow$
-conserved level sets.
-
 ---
 
 ## References
 
 - **[Bombieri–Gubler 2006]** E. Bombieri, W. Gubler. *Heights in Diophantine Geometry.* Cambridge, 2006.
-- **[Bost–Connes 1995]** J.-B. Bost, A. Connes. *Hecke algebras, type III factors and phase transitions with spontaneous symmetry breaking in number theory.* Selecta Math. 1(3):411–457, 1995.
 - **[Bernstein–Lagarias 1996]** D. J. Bernstein, J. C. Lagarias. *The $3x+1$ conjugacy map.* Canad. J. Math. 48(6):1154–1169, 1996.
 - **[Clift–Murfet–Wallbridge 2021]** J. Clift, D. Murfet, J. Wallbridge. *Geometry of Program Synthesis.* arXiv:2103.16080, 2021.
-- **[Connes 1999]** A. Connes. *Trace formula in noncommutative geometry and the zeros of the Riemann zeta function.* Selecta Math. 5:29–106, 1999.
-- **[Connes–Consani 2021]** A. Connes, C. Consani. *Weil positivity and trace formula, the archimedean place.* Selecta Math. 27:77, 2021. arXiv:2006.13771.
-- **[Connes 2024]** A. Connes. *Zeta zeros and prolate wave operators.* 2024. (See also Connes–Consani, *The Scaling Hamiltonian.*)
 - **[David–Alla 2010]** R. David, H. Alla. *Discrete, Continuous, and Hybrid Petri Nets.* Springer, 2010 (continuous Petri nets, David–Alla 1987).
 - **[Lagarias 2002]** J. C. Lagarias. *An elementary problem equivalent to the Riemann hypothesis.* Amer. Math. Monthly 109(6):534–543, 2002.
 - **[Odlyzko–te Riele 1985]** A. M. Odlyzko, H. J. J. te Riele. *Disproof of the Mertens conjecture.* J. Reine Angew. Math. 357:138–160, 1985.

@@ -187,7 +187,7 @@ the Pontryagin dual (`theory.md`/`explorations.md` §4):
 | field | meaning | code |
 |---|---|---|
 | `depth` | BFS distance from the source (flow) | `node_depths` |
-| `logn` | `log n` (the height / Bost–Connes energy) | `logn_values` |
+| `logn` | `log n` (the height energy) | `logn_values` |
 | `fiedler` | 1st non-trivial Laplacian eigenvector — the lowest **graph-Fourier / Pontryagin** mode | `laplacian_harmonic(·,1)` |
 | `harmonic2`,`harmonic3` | higher graph-Fourier modes; their nodal domains expose community/bottleneck structure | `laplacian_harmonic` |
 | `chebyshev` | **Chebyshev**-polynomial graph filter `T_k(L̃)δ` from the source (GSP) | `chebyshev_response` |

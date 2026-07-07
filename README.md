@@ -194,9 +194,9 @@ background colour and every other setting is user-controllable from that one obj
 - **[theory.md](theory.md)** — the mathematics: prime-valuation lattice, p-adic
   and height dynamics, vector addition systems, binomial/toric ideals,
   universality, and the genus-0/1 (elliptic) boundary.
-- **[explorations.md](explorations.md)** — deeper threads: the Bost–Connes bridge
-  to ζ, the two Weils, continuum limits, graph Fourier = the Pontryagin transform,
-  and RHGAME (Robin's inequality compiled to a fraction list).
+- **[explorations.md](explorations.md)** — deeper threads: the Weil height,
+  continuum limits, graph Fourier = the Pontryagin transform, and RHGAME
+  (Robin's inequality compiled to a fraction list).
 
 ## Architecture
 
@@ -226,6 +226,6 @@ live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical
 landscape — the prime-valuation lattice, p-adic and height dynamics, vector
 addition systems, binomial/toric ideals, universality, and where elliptic curves
 do and don't enter — is in **[theory.md](theory.md)**, with citations. Deeper and
-more speculative threads — the Bost–Connes bridge to $\zeta$, the two Weils,
-continuum limits, and the toric geometry of program synthesis — are collected in
+more speculative threads — the Weil height, continuum limits, graph Fourier
+structure, and the toric geometry of program synthesis — are collected in
 **[explorations.md](explorations.md)**.
