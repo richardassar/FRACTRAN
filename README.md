@@ -72,6 +72,8 @@ Two modes: **vector** (int64 prime exponents — the fast path) and **canonical*
 | `calc.py` / `demos.py` | the calculator and the I/O demo gallery |
 | `serialize.py` | compact binary representation of programs |
 
-Full design notes, the theory (register machines, VAS/Petri nets, p-adic
-valuations), the external gallery, and the roadmap live in
-**[fractran-overview.md](fractran-overview.md)**.
+Design notes, the module-by-module tour, the external gallery, and the roadmap
+live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical
+landscape — the prime-valuation lattice, p-adic and height dynamics, vector
+addition systems, binomial/toric ideals, universality, and where elliptic curves
+do and don't enter — is in **[theory.md](theory.md)**, with citations.
