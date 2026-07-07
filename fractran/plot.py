@@ -482,25 +482,25 @@ def _layered_layout(G, sources):
 
 
 def plot_conway(prog, start, outfile, control_primes=None, style=None, title=None,
-                show_ops=True, edge_color=None):
-    """Conway's flowchart, drawn to his own 1987 Sec.7 convention: one node per
-    program *line* (control state, labelled by its control prime), and each fraction
-    a directed edge to the line it jumps to, labelled with the fraction. The number
-    of arrowheads = that fraction's PRIORITY at the node (single = tried first,
-    double = next, ...); a line that jumps to itself is a self-loop; a stub arrow in
-    marks the start line and a stub out marks a line that can stop. The control
-    states are recovered from the raw fraction list by the decompiler, so this is
-    the finite ("collapsed") register machine, independent of the input value.
-    Best for compiled / one-hot programs; hand-golfed lists are a heuristic."""
-    import networkx as nx
-    import numpy as np
-    from matplotlib.patches import Arc, Circle, FancyArrowPatch, Polygon
+                show_ops=True, rankdir="TB"):
+    """Conway's flowchart, to his own 1987 Sec.7 convention, rendered with graphviz.
+    One node per program *line* (control state, labelled by its control prime); each
+    fraction is a directed edge to the line it jumps to, labelled with the fraction
+    (and its register ``-dec``/``+inc`` effect). The number of arrowheads = that
+    fraction's PRIORITY at the node (single = tried first, double = next); a line
+    that jumps to itself is a self-loop; a stub arrow in marks the start line and a
+    stub out marks a line that can stop. Control states are recovered from the raw
+    fraction list by the decompiler, so this is the finite ("collapsed") register
+    machine, independent of the input value. Cleanest on compiled / one-hot programs;
+    hand-golfed lists decompile only heuristically. Needs graphviz + pydot."""
+    import pydot
 
     from .core import factorize
     from .decompile import classify, cfg
 
     style = style or THEMES["paper"]
-    fg = edge_color or style.title_color
+    fg = style.title_color
+    bg = style.bg or "transparent"
     node_fc = "#ffffff" if style.bg else "#20242e"
     if control_primes is None:
         control_primes = classify(prog, start)["controls"]
@@ -518,99 +518,45 @@ def plot_conway(prog, start, outfile, control_primes=None, style=None, title=Non
     start_state = factorize(start) if isinstance(start, int) else dict(start)
     start_ctrl = next((p for p in start_state if p in Sctrl), None)
 
-    G = nx.DiGraph()
-    G.add_nodes_from(statenodes)
-    for s, d, *_ in edges:
-        if d is not None:
-            G.add_edge(s, d)
-    try:
-        from networkx.drawing.nx_pydot import graphviz_layout
-        raw = graphviz_layout(G, prog="dot")
-    except Exception:
-        raw = _layered_layout(G, [start_ctrl] if start_ctrl in G else list(G)[:1])
-    xs = np.array([raw[n][0] for n in statenodes], float)
-    ys = np.array([raw[n][1] for n in statenodes], float)
-    span = max(xs.max() - xs.min(), ys.max() - ys.min(), 1e-9)
-    pos = {n: np.array([(raw[n][0] - xs.min()) / span * 10,
-                        (raw[n][1] - ys.min()) / span * 10]) for n in statenodes}
-    R = 0.42
-
-    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=_facecolor(style))
-    ax.set_facecolor(_facecolor(style))
-
-    def chevrons(tip, dirn, k, size=0.32, w=0.18):
-        d = np.asarray(dirn, float)
-        d = d / (np.linalg.norm(d) or 1.0)
-        n = np.array([-d[1], d[0]])
-        for j in range(k):
-            base = tip - j * 0.85 * size * d
-            ax.add_patch(Polygon([base, base - size * d + w * n, base - size * d - w * n],
-                                 closed=True, color=fg, zorder=6))
-
-    def label(mid, txt, dy=0.0, fs=7.5):
-        ax.text(mid[0], mid[1] + dy, txt, color=fg, fontsize=fs, ha="center", va="center",
-                bbox=dict(boxstyle="round,pad=0.12", fc=_facecolor(style), ec="none", alpha=0.9),
-                zorder=5)
-
     def opstr(dec, inc):
         s = ""
         if dec:
-            s += "−" + "·".join(str(p) for p in sorted(dec))
+            s += "-" + ",".join(str(p) for p in sorted(dec))
         if inc:
-            s += " +" + "·".join(str(p) for p in sorted(inc))
-        return s.strip()
+            s += ("  " if s else "") + "+" + ",".join(str(p) for p in sorted(inc))
+        return s
 
-    for s, d, prio, fr, dec, inc in edges:
-        frac = f"{fr.num}/{fr.den}"
-        if d is None:                                   # stop stub
-            p = pos[s]
-            tip = p + np.array([0.0, -1.2])
-            ax.plot([p[0], tip[0]], [p[1] - R, tip[1] + 0.3], color=fg, lw=1.3, zorder=2)
-            chevrons(tip, [0, -1], prio + 1)
-            label(p + np.array([0.9, -0.9]), frac, fs=7)
-            continue
-        if s == d:                                      # self-loop above the node
-            c = pos[s] + np.array([0.0, R + 0.7])
-            ax.add_patch(Arc(c, 1.5, 1.5, angle=0, theta1=-30, theta2=210, color=fg, lw=1.3, zorder=2))
-            chevrons(pos[s] + np.array([0.62, R + 0.1]), [0.7, -1], prio + 1)
-            label(c + np.array([0.0, 0.95]), frac, fs=7)
-            continue
-        p0, p1 = pos[s], pos[d]
-        u = p1 - p0
-        u = u / (np.linalg.norm(u) or 1.0)
-        perp = np.array([-u[1], u[0]])
-        a, b = p0 + u * R, p1 - u * R
-        rad = 0.13
-        ax.add_patch(FancyArrowPatch(a, b, connectionstyle=f"arc3,rad={rad}",
-                                     arrowstyle="-", color=fg, lw=1.3, zorder=2))
-        ctrl = (a + b) / 2 + perp * rad * np.linalg.norm(b - a)
-        chevrons(b, b - ctrl, prio + 1)
-        mid = (a + b) / 2 + perp * rad * np.linalg.norm(b - a) * 0.8
-        label(mid, frac)
-        if show_ops and (dec or inc):
-            label(mid + np.array([0.0, -0.42]), opstr(dec, inc), fs=6)
+    g = pydot.Dot("conway", graph_type="digraph", rankdir=rankdir, bgcolor=bg,
+                  dpi=str(style.dpi), splines="true", nodesep="0.45", ranksep="0.65",
+                  fontname="Helvetica", fontcolor=fg, fontsize="18",
+                  label=(title or ""), labelloc="t")
+    g.set_node_defaults(shape="circle", style="filled", fillcolor=node_fc, color=fg,
+                        penwidth="1.6", fontname="Helvetica", fontcolor=fg, fontsize="15",
+                        width="0.55", fixedsize="true")
+    g.set_edge_defaults(color=fg, fontname="Helvetica", fontcolor=fg, fontsize="11",
+                        penwidth="1.3", arrowsize="1.0")
 
-    for node in statenodes:
-        p = pos[node]
-        ax.add_patch(Circle(p, R, facecolor=node_fc, edgecolor=fg, lw=1.4, zorder=3))
-        ax.text(p[0], p[1], str(node), color=fg, fontsize=9, ha="center", va="center",
-                fontweight="bold", zorder=4)
-    if start_ctrl in pos:                               # start stub
-        p = pos[start_ctrl]
-        ax.plot([p[0] - 1.5, p[0] - R], [p[1], p[1]], color=fg, lw=1.3, zorder=2)
-        chevrons(p + np.array([-R, 0]), [1, 0], 1)
+    for n in sorted(statenodes):
+        g.add_node(pydot.Node(str(n)))
+    if start_ctrl is not None:                                  # start stub
+        g.add_node(pydot.Node("__start", style="invis", width="0", height="0", label=""))
+        g.add_edge(pydot.Edge("__start", str(start_ctrl)))
 
-    allx = [p[0] for p in pos.values()]
-    ally = [p[1] for p in pos.values()]
-    ax.set_xlim(min(allx) - 2.2, max(allx) + 2.2)
-    ax.set_ylim(min(ally) - 2.2, max(ally) + 2.2)
-    ax.set_aspect("equal")
-    ax.set_axis_off()
-    if title:
-        ax.set_title(title, color=style.title_color, fontsize=14)
-    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight",
-                pad_inches=0.15, transparent=style.bg is None)
-    plt.close(fig)
+    heads = ["normal", "normalnormal", "normalnormalnormal", "normalnormalnormalnormal"]
+    for i, (s, d, prio, fr, dec, inc) in enumerate(edges):
+        lab = f"{fr.num}/{fr.den}"
+        if show_ops:
+            op = opstr(dec, inc)
+            if op:
+                lab += "\n" + op
+        head = heads[min(prio, len(heads) - 1)]             # arrowheads = priority
+        if d is None:                                           # stop stub
+            stop = f"__stop{i}"
+            g.add_node(pydot.Node(stop, style="invis", width="0", height="0", label=""))
+            g.add_edge(pydot.Edge(str(s), stop, label=lab, arrowhead=head))
+        else:
+            g.add_edge(pydot.Edge(str(s), str(d), label=lab, arrowhead=head))
+    g.write_png(outfile)
     return outfile, len(statenodes), len(edges)
 
 
