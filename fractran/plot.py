@@ -83,3 +83,59 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
     fig.savefig(outfile, dpi=130, bbox_inches="tight")
     plt.close(fig)
     return outfile, len(nodes), sorted(as_int(k) for k in sinks)
+
+
+def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None):
+    """Heatmap of the prime-exponent vector over a run: the FRACTRAN space-time
+    diagram (rows = primes/registers, columns = steps, colour = exponent)."""
+    import numpy as np
+
+    from .core import factorize, run_iter
+
+    state = factorize(start) if isinstance(start, int) else dict(start)
+    history = [dict(state)]
+    for i, (_, s) in enumerate(run_iter(prog, state)):
+        history.append(dict(s))
+        if i + 1 >= steps:
+            break
+    primes = sorted({p for h in history for p in h})
+    M = np.array([[h.get(p, 0) for p in primes] for h in history], float).T
+
+    fig, ax = plt.subplots(figsize=(min(14, 2 + len(history) / 90), 1 + len(primes) * 0.32))
+    im = ax.imshow(M, aspect="auto", cmap=cmap, origin="lower", interpolation="nearest")
+    ax.set_yticks(range(len(primes)))
+    ax.set_yticklabels(primes, fontsize=7)
+    ax.set_xlabel("step")
+    ax.set_ylabel("prime (register)")
+    ax.set_title(title or f"space-time of the prime exponents ({len(history)} steps)")
+    fig.colorbar(im, ax=ax, label="exponent", fraction=0.025)
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return outfile
+
+
+def plot_rule30(width=480, gens=260, outfile="rule30.png", ink="#101418",
+                paper="#f4f1ea", pad=0.0):
+    """Render the Rule 30 space-time triangle (the same CA the FRACTRAN rule30
+    program computes) as a crisp raster from a single seed cell."""
+    import numpy as np
+    from matplotlib.colors import ListedColormap
+
+    row = np.zeros(width, dtype=np.uint8)
+    row[width // 2] = 1
+    grid = np.zeros((gens, width), dtype=np.uint8)
+    for g in range(gens):
+        grid[g] = row
+        left = np.roll(row, 1)
+        left[0] = 0
+        right = np.roll(row, -1)
+        right[-1] = 0
+        row = left ^ (row | right)
+
+    fig, ax = plt.subplots(figsize=(width / 90, gens / 90), dpi=200)
+    ax.imshow(grid, cmap=ListedColormap([paper, ink]), interpolation="nearest")
+    ax.set_axis_off()
+    fig.savefig(outfile, bbox_inches="tight", pad_inches=pad, facecolor=paper)
+    plt.close(fig)
+    return outfile

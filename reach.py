@@ -15,7 +15,8 @@ Two modes.
 
       python3 reach.py "2/3 3/2" --region 2:3,3:3
 
-Options:  --max N   cap on reachable states explored (default 20000).
+Options:  --max N        cap on reachable states explored (default 20000).
+          --plot FILE    also draw the reachability graph to a PNG (unfold mode).
 """
 
 import sys
@@ -32,7 +33,11 @@ def parse_region(spec):
     return bounds
 
 
-def unfold(prog, start, maxs):
+def unfold(prog, start, maxs, plotfile=None):
+    if plotfile:
+        from fractran.plot import plot_reachability
+        path, n, sinks = plot_reachability(prog, start, plotfile, max_states=maxs)
+        print(f"wrote {path}  ({n} states, normal forms {sinks})")
     r = R.reachable(prog, start, max_states=maxs)
     a = R.analyze(prog, r)
     print(f"start = {start}")
@@ -71,15 +76,20 @@ def main(argv):
     prog = program(argv[0])
     rest = argv[1:]
     maxs = 20000
+    plotfile = None
     if "--max" in rest:
         i = rest.index("--max")
         maxs = int(rest[i + 1])
+        del rest[i:i + 2]
+    if "--plot" in rest:
+        i = rest.index("--plot")
+        plotfile = rest[i + 1]
         del rest[i:i + 2]
     if "--region" in rest:
         i = rest.index("--region")
         region(prog, parse_region(rest[i + 1]), maxs)
     elif rest:
-        unfold(prog, int(rest[0]), maxs)
+        unfold(prog, int(rest[0]), maxs, plotfile)
     else:
         print("give a start integer, or --region p:e,p:e", file=sys.stderr)
 
