@@ -553,7 +553,7 @@ def plot_conway(prog, start, outfile, control_primes=None, style=None, title=Non
     style = style or THEMES["paper"]
     fg = style.title_color
     bg = style.bg or "transparent"
-    node_fc = "#ffffff" if style.bg else "#20242e"
+    node_fc = "none" if style.bg is None else "#ffffff"   # unfilled on transparent
     if control_primes is None:
         control_primes = classify(prog, start)["controls"]
     Sctrl = set(control_primes)

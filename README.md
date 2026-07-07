@@ -139,7 +139,8 @@ python3 -c "from fractran.plot import plot_multiway; from fractran.programs impo
            plot_multiway(MULTIPLY, 2**3*3**3, 'multiply.png', node_by='depth')"
 ```
 
-![Conway MULTIPLY multiway graph](assets/mw_conway_multiply.png)
+<img src="assets/mw_conway_multiply.png" width="480" alt="Multiway graph of Conway's MULTIPLY — every integer state a vertex, every applicable fraction an edge, nodes coloured by BFS depth">
+
 
 The node colouring can be any of eleven **structural or spectral** fields
 (`NODE_FIELDS`): `depth`, `logn`, `fiedler` and `harmonic2/3` (graph-Fourier /
@@ -172,7 +173,8 @@ python3 -c "from fractran.plot import plot_conway; from fractran.programs import
            c=make_add(); plot_conway(c.fractions, c.start(a=3,b=4), 'add.png')"
 ```
 
-![Conway flowchart of compiled add](assets/conway_add.png)
+<img src="assets/conway_add.png" width="440" alt="Conway-style register-machine flowchart of compiled add: control states as circular nodes, fractions on directed edges, arrowhead count showing priority">
+
 
 ### Themes
 
