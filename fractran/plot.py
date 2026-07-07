@@ -481,65 +481,137 @@ def _layered_layout(G, sources):
     return pos
 
 
-def plot_conway(prog, starts, outfile, max_states=60, style=None, layout="dot",
-                node_color=None, label_color=None, title=None):
-    """Conway-style diagram (a display mode): the reachability graph drawn as a
-    flowchart -- integer states as labelled circular nodes, and each applicable
-    fraction as a *directed, labelled* edge (coloured by which fraction fired).
-    Best for small programs/inputs where the state numbers stay readable. Uses a
-    graphviz 'dot' layout when available, else an energy layout. Defaults to the
-    light theme; pass any ``style`` (``THEMES[...]`` or a custom ``Style``)."""
+def plot_conway(prog, start, outfile, control_primes=None, style=None, title=None,
+                show_ops=True, edge_color=None):
+    """Conway's flowchart, drawn to his own 1987 Sec.7 convention: one node per
+    program *line* (control state, labelled by its control prime), and each fraction
+    a directed edge to the line it jumps to, labelled with the fraction. The number
+    of arrowheads = that fraction's PRIORITY at the node (single = tried first,
+    double = next, ...); a line that jumps to itself is a self-loop; a stub arrow in
+    marks the start line and a stub out marks a line that can stop. The control
+    states are recovered from the raw fraction list by the decompiler, so this is
+    the finite ("collapsed") register machine, independent of the input value.
+    Best for compiled / one-hot programs; hand-golfed lists are a heuristic."""
     import networkx as nx
+    import numpy as np
+    from matplotlib.patches import Arc, Circle, FancyArrowPatch, Polygon
 
-    style = style or THEMES["light"]
-    light = style.bg is None or (isinstance(style.bg, str) and style.bg[1:3].lower() > "88")
-    node_color = node_color or ("#eef2f7" if light else "#1c2230")
-    label_color = label_color or ("#12161c" if light else "#e6edf3")
+    from .core import factorize
+    from .decompile import classify, cfg
 
-    nodes, efrac, sources = build_multiway(prog, starts, max_states)
+    style = style or THEMES["paper"]
+    fg = edge_color or style.title_color
+    node_fc = "#ffffff" if style.bg else "#20242e"
+    if control_primes is None:
+        control_primes = classify(prog, start)["controls"]
+    Sctrl = set(control_primes)
+
+    edges, statenodes = [], set()
+    for cur, es in cfg(prog, control_primes).items():
+        if cur is None:
+            continue
+        for prio, e in enumerate(es):          # per-node order == FRACTRAN priority
+            statenodes.add(cur)
+            if e["next"] is not None:
+                statenodes.add(e["next"])
+            edges.append((cur, e["next"], prio, e["fr"], e["dec"], e["inc"]))
+    start_state = factorize(start) if isinstance(start, int) else dict(start)
+    start_ctrl = next((p for p in start_state if p in Sctrl), None)
+
     G = nx.DiGraph()
-    G.add_nodes_from(nodes)
-    for (a, b), fi in efrac.items():
-        G.add_edge(a, b, frac=f"{prog[fi].num}/{prog[fi].den}", fidx=fi)
+    G.add_nodes_from(statenodes)
+    for s, d, *_ in edges:
+        if d is not None:
+            G.add_edge(s, d)
+    try:
+        from networkx.drawing.nx_pydot import graphviz_layout
+        raw = graphviz_layout(G, prog="dot")
+    except Exception:
+        raw = _layered_layout(G, [start_ctrl] if start_ctrl in G else list(G)[:1])
+    xs = np.array([raw[n][0] for n in statenodes], float)
+    ys = np.array([raw[n][1] for n in statenodes], float)
+    span = max(xs.max() - xs.min(), ys.max() - ys.min(), 1e-9)
+    pos = {n: np.array([(raw[n][0] - xs.min()) / span * 10,
+                        (raw[n][1] - ys.min()) / span * 10]) for n in statenodes}
+    R = 0.42
 
-    pos = None
-    if layout == "dot":
-        try:
-            from networkx.drawing.nx_pydot import graphviz_layout
-            pos = graphviz_layout(G, prog="dot")
-        except Exception:
-            pos = None
-    if pos is None:
-        pos = _layered_layout(G, sources)
-
-    ecmap = plt.get_cmap(style.edge_cmap)
-    nf = max(1, len(prog))
     fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=_facecolor(style))
     ax.set_facecolor(_facecolor(style))
-    for a, b, data in G.edges(data=True):
-        col = ecmap((data["fidx"] % nf + 0.5) / nf)
-        rad = 0.1 if (b, a) not in G.edges else 0.16  # curve reciprocal pairs apart
-        ax.annotate("", xy=pos[b], xytext=pos[a],
-                    arrowprops=dict(arrowstyle="-|>", color=col, lw=1.6, shrinkA=13, shrinkB=13,
-                                    connectionstyle=f"arc3,rad={rad}"), zorder=2)
-    for k in G.nodes:
-        x, y = pos[k]
-        ax.scatter([x], [y], s=560, c=node_color, edgecolors=label_color, linewidths=1.0, zorder=3)
-        ax.text(x, y, str(as_int(k)), ha="center", va="center", color=label_color,
-                fontsize=8, fontweight="bold", zorder=4)
-    for a, b, data in G.edges(data=True):
-        xm, ym = (pos[a][0] + pos[b][0]) / 2, (pos[a][1] + pos[b][1]) / 2
-        ax.text(xm, ym, data["frac"], color=label_color, fontsize=7, ha="center", va="center",
-                bbox=dict(boxstyle="round,pad=0.12", fc=_facecolor(style), ec="none", alpha=0.75),
+
+    def chevrons(tip, dirn, k, size=0.32, w=0.18):
+        d = np.asarray(dirn, float)
+        d = d / (np.linalg.norm(d) or 1.0)
+        n = np.array([-d[1], d[0]])
+        for j in range(k):
+            base = tip - j * 0.85 * size * d
+            ax.add_patch(Polygon([base, base - size * d + w * n, base - size * d - w * n],
+                                 closed=True, color=fg, zorder=6))
+
+    def label(mid, txt, dy=0.0, fs=7.5):
+        ax.text(mid[0], mid[1] + dy, txt, color=fg, fontsize=fs, ha="center", va="center",
+                bbox=dict(boxstyle="round,pad=0.12", fc=_facecolor(style), ec="none", alpha=0.9),
                 zorder=5)
+
+    def opstr(dec, inc):
+        s = ""
+        if dec:
+            s += "−" + "·".join(str(p) for p in sorted(dec))
+        if inc:
+            s += " +" + "·".join(str(p) for p in sorted(inc))
+        return s.strip()
+
+    for s, d, prio, fr, dec, inc in edges:
+        frac = f"{fr.num}/{fr.den}"
+        if d is None:                                   # stop stub
+            p = pos[s]
+            tip = p + np.array([0.0, -1.2])
+            ax.plot([p[0], tip[0]], [p[1] - R, tip[1] + 0.3], color=fg, lw=1.3, zorder=2)
+            chevrons(tip, [0, -1], prio + 1)
+            label(p + np.array([0.9, -0.9]), frac, fs=7)
+            continue
+        if s == d:                                      # self-loop above the node
+            c = pos[s] + np.array([0.0, R + 0.7])
+            ax.add_patch(Arc(c, 1.5, 1.5, angle=0, theta1=-30, theta2=210, color=fg, lw=1.3, zorder=2))
+            chevrons(pos[s] + np.array([0.62, R + 0.1]), [0.7, -1], prio + 1)
+            label(c + np.array([0.0, 0.95]), frac, fs=7)
+            continue
+        p0, p1 = pos[s], pos[d]
+        u = p1 - p0
+        u = u / (np.linalg.norm(u) or 1.0)
+        perp = np.array([-u[1], u[0]])
+        a, b = p0 + u * R, p1 - u * R
+        rad = 0.13
+        ax.add_patch(FancyArrowPatch(a, b, connectionstyle=f"arc3,rad={rad}",
+                                     arrowstyle="-", color=fg, lw=1.3, zorder=2))
+        ctrl = (a + b) / 2 + perp * rad * np.linalg.norm(b - a)
+        chevrons(b, b - ctrl, prio + 1)
+        mid = (a + b) / 2 + perp * rad * np.linalg.norm(b - a) * 0.8
+        label(mid, frac)
+        if show_ops and (dec or inc):
+            label(mid + np.array([0.0, -0.42]), opstr(dec, inc), fs=6)
+
+    for node in statenodes:
+        p = pos[node]
+        ax.add_patch(Circle(p, R, facecolor=node_fc, edgecolor=fg, lw=1.4, zorder=3))
+        ax.text(p[0], p[1], str(node), color=fg, fontsize=9, ha="center", va="center",
+                fontweight="bold", zorder=4)
+    if start_ctrl in pos:                               # start stub
+        p = pos[start_ctrl]
+        ax.plot([p[0] - 1.5, p[0] - R], [p[1], p[1]], color=fg, lw=1.3, zorder=2)
+        chevrons(p + np.array([-R, 0]), [1, 0], 1)
+
+    allx = [p[0] for p in pos.values()]
+    ally = [p[1] for p in pos.values()]
+    ax.set_xlim(min(allx) - 2.2, max(allx) + 2.2)
+    ax.set_ylim(min(ally) - 2.2, max(ally) + 2.2)
+    ax.set_aspect("equal")
     ax.set_axis_off()
-    ax.margins(0.08)
     if title:
         ax.set_title(title, color=style.title_color, fontsize=14)
     fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight",
                 pad_inches=0.15, transparent=style.bg is None)
     plt.close(fig)
-    return outfile, len(nodes), len(efrac)
+    return outfile, len(statenodes), len(edges)
 
 
 def plot_multiway_montage(specs, outfile, max_states=220, cols=3, node_by="depth", style=STYLE):
