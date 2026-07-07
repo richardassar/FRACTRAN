@@ -153,6 +153,57 @@ The verified compiler makes a *correct* self-interpreter buildable — the hones
 - **Rung 2 (next):** the interpretation *tower*. Nesting (interpreter interpreting the interpreter) needs the object program **encoded into `n`** (Gödel-style) rather than read via I/O — an object program run *inside* another can't do stream I/O. That's the encoded-input variant to build next.
 - **Rung 3:** self-hosting — compile `assemble` (IR → fractions) itself to FRACTRAN.
 
+## 11. Visualization (`fractran/plot.py`)
+
+All graph images go through one renderer and one style object, so a look change in
+one place propagates everywhere.
+
+**The graph.** `build_multiway(prog, starts, max_states)` grows the *multiway*
+(nondeterministic) reachability graph: from each integer state, fire **every**
+applicable fraction, keep the integer successors, iterate from the start(s). It
+returns `(nodes, efrac, sources)` where `efrac[(a,b)]` is the index of the
+fraction that produced edge `a→b`. (This is `reachability.reachable` unioned over
+starts; deterministic/one-hot compiled programs give a single path, hand-written
+multi-fraction programs branch.)
+
+**The renderer.** `draw_graph(ax, nodes, efrac, pos, values, nfrac, style)` draws
+fraction-coloured directed edges (each edge dim-tail → bright-head to show
+direction) and nodes coloured by `values`. `Style` (the module default `STYLE`)
+holds `node_size`, `node_cmap`, `node_floor`, `node_alpha`, `edge_cmap`,
+`edge_lw`, `edge_alpha`, `tail_dim`, `dpi` — edit one field and every image
+restyles. Layout is `graph_layout` (force-directed) or the exponent lattice for
+two-prime programs.
+
+**Node fields** (`node_field` / `NODE_FIELDS`) — structural and *spectral*
+colourings of the same lattice; the spectral ones are graph signal processing on
+the Pontryagin dual (`theory.md`/`explorations.md` §4):
+
+| field | meaning | code |
+|---|---|---|
+| `depth` | BFS distance from the source (flow) | `node_depths` |
+| `logn` | `log n` (the height / Bost–Connes energy) | `logn_values` |
+| `fiedler` | 1st non-trivial Laplacian eigenvector — the lowest **graph-Fourier / Pontryagin** mode | `laplacian_harmonic(·,1)` |
+| `harmonic2`,`harmonic3` | higher graph-Fourier modes; their nodal domains expose community/bottleneck structure | `laplacian_harmonic` |
+| `chebyshev` | **Chebyshev**-polynomial graph filter `T_k(L̃)δ` from the source (GSP) | `chebyshev_response` |
+| `wavelet` | spectral graph wavelet `(e^{-t₁L}-e^{-t₂L})δ` (difference of heat kernels) | `graph_wavelet` |
+| `markov` | slow **random-walk** (Markov) mode — the metastable reaction coordinate | `markov_mode` |
+| `stationary` | random-walk stationary `π ∝ degree` | `stationary_dist` |
+| `heat` | heat kernel `exp(-tL)δ` diffused from the source | `heat_kernel` |
+| `commute` | effective resistance / commute-time to the source (truncated spectral sum) | `commute_resistance` |
+
+**Plot functions.** `plot_multiway(prog, starts, out, node_by=…)` — one lattice,
+one colouring. `plot_spectral_gallery(prog, start, out, fields)` — one lattice by
+many fields (layout computed once). `plot_network` — a reachability network with a
+choice of layout (`kamada` for divisor-lattice hypercubes). `plot_multiway_montage`
+— a grid across programs. `plot_reachability` — the small labelled graph behind
+`reach.py --plot` and `plot_reach.py`. Plus line-art specials: `plot_collatz_coral`
+(all Collatz trajectories to 1, with chosen runs highlighted), `plot_spacetime`
+(the prime-exponent space-time heatmap of a run), `plot_rule30` (the Rule 30
+triangle). Assets live in `assets/`.
+
+**CLIs.** `python3 plot_reach.py "1/2 1/3" 72 out.png` and `python3 reach.py "…" N
+--plot out.png` render reachability graphs from the terminal.
+
 ## Roadmap status
 
 - [x] **#1 Spine** — vector interpreter + tracing, Minsky assembler, structured front-end. Tests: fib, factorial.

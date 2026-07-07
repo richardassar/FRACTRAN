@@ -121,6 +121,46 @@ Nodes are states (labelled by the integer), green = start, red = halting normal
 form; two-prime programs are laid out on the exponent lattice `(v_p, v_q)` — the
 Hasse diagram. Open the PNG in any image viewer.
 
+## Visualization (`fractran/plot.py`)
+
+Every FRACTRAN program is a **multiway graph**: fire every applicable fraction at
+every integer state and connect directed edges. `plot_multiway` renders it with
+edges coloured by which fraction fired and nodes coloured by a chosen field.
+
+```sh
+python3 -c "from fractran.plot import plot_multiway; from fractran.programs import MULTIPLY; \
+           plot_multiway(MULTIPLY, 2**3*3**3, 'multiply.png', node_by='depth')"
+```
+
+![Conway MULTIPLY multiway graph](assets/mw_conway_multiply.png)
+
+The node colouring can be any of eleven **structural or spectral** fields
+(`NODE_FIELDS`): `depth`, `logn`, `fiedler` and `harmonic2/3` (graph-Fourier /
+Pontryagin modes), `chebyshev` (a graph filter), `wavelet`, `markov` (random-walk
+mode), `stationary`, `heat` (heat kernel), `commute` (effective resistance).
+`plot_spectral_gallery` paints one lattice by all of them at once:
+
+![Spectral fields on the MULTIPLY lattice](assets/spectral_multiply.png)
+
+Everything shares one `Style` object and one `draw_graph` renderer, so a look
+change propagates to every image. Other renderers: `plot_network` (divisor-lattice
+hypercubes), `plot_multiway_montage` (a grid across programs), `plot_collatz_coral`
+(all Collatz trajectories), `plot_spacetime`, `plot_rule30`, and the labelled
+`plot_reachability` behind `plot_reach.py` / `reach.py --plot`. Full reference and
+the math of each field: [fractran-overview.md §11](fractran-overview.md).
+
+## Documentation
+
+- **[fractran-overview.md](fractran-overview.md)** — module-by-module tour: the
+  interpreter, compiler, streaming-I/O mechanism (§3′, §9), accelerator, native
+  core, self-interpreter, reachability, and the visualization suite (§11).
+- **[theory.md](theory.md)** — the mathematics: prime-valuation lattice, p-adic
+  and height dynamics, vector addition systems, binomial/toric ideals,
+  universality, and the genus-0/1 (elliptic) boundary.
+- **[explorations.md](explorations.md)** — deeper threads: the Bost–Connes bridge
+  to ζ, the two Weils, continuum limits, graph Fourier = the Pontryagin transform,
+  and RHGAME.
+
 ## Architecture
 
 `fractran/` is a dependency-free Python package. The pipeline is:
