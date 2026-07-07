@@ -201,8 +201,25 @@ choice of layout (`kamada` for divisor-lattice hypercubes). `plot_multiway_monta
 (the prime-exponent space-time heatmap of a run), `plot_rule30` (the Rule 30
 triangle). Assets live in `assets/`.
 
-**CLIs.** `python3 plot_reach.py "1/2 1/3" 72 out.png` and `python3 reach.py "…" N
---plot out.png` render reachability graphs from the terminal.
+**Conway flowcharts.** `plot_conway(prog, start, out)` draws a program the way
+Conway did (his 1987 paper §7): a **register-machine flowchart** — one node per
+program *line* / control state, each fraction a directed edge to the line it jumps
+to (labelled with the fraction and its register `−dec`/`+inc` effect), the number
+of arrowheads giving that fraction's **priority** at the node (single = first tried,
+double = next, amalgamated for adjacent priorities), plus self-loops, a start stub,
+and stop stubs. This is the *finite, collapsed* machine, independent of the input:
+the control states are recovered from the bare fraction list by `decompile.classify`
+/ `decompile.cfg`, so it works directly on a raw program. It is cleanest on compiled
+(one-hot) programs; hand-golfed lists such as Conway's own MULTIPLY only decompile
+heuristically. Layout uses graphviz `dot` (via `pydot`) when available, else the
+built-in layered fallback `_layered_layout`.
+
+**Themes.** Every renderer takes `style=`. `THEMES` provides `dark` (default),
+`light`, `paper`, and `transparent`; a `Style` with `bg=None` renders on a
+transparent background (`transparent=True` at save time). Construct any
+`Style(node_size=…, node_cmap=…, edge_cmap=…, node_alpha=…, bg=…)` and pass it —
+background colour and all other settings are user-controllable from that one object,
+and `draw_graph` honours it everywhere.
 
 ## Roadmap status
 

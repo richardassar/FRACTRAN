@@ -149,6 +149,31 @@ hypercubes), `plot_multiway_montage` (a grid across programs), `plot_collatz_cor
 `plot_reachability` behind `plot_reach.py` / `reach.py --plot`. Full reference and
 the math of each field: [fractran-overview.md §11](fractran-overview.md).
 
+### Conway flowcharts (`plot_conway`)
+
+Conway drew FRACTRAN programs as **register-machine flowcharts** (his 1987 paper,
+§7 "Beginners' Guide"): one node per program *line* / control state, each fraction
+a directed edge to the line it jumps to, the number of arrowheads giving that
+fraction's **priority** at the node (single = tried first, double = next), with
+self-loops, a start stub, and stop stubs. `plot_conway` reproduces this — it
+recovers the control states from the raw fraction list with the decompiler
+(`fractran/decompile.py`), so it draws the *finite, collapsed* machine, independent
+of the input value:
+
+```sh
+python3 -c "from fractran.plot import plot_conway; from fractran.programs import make_add; \
+           c=make_add(); plot_conway(c.fractions, c.start(a=3,b=4), 'add.png')"
+```
+
+![Conway flowchart of compiled add](assets/conway_add.png)
+
+### Themes
+
+Everything takes a `style=`; `THEMES` has `dark` (default), `light`, `paper`, and
+`transparent` (a `Style` with `bg=None` renders on a transparent background). Build
+your own `Style(node_size=…, edge_cmap=…, bg=…)` and pass it to any renderer —
+background colour and every other setting is user-controllable from that one object.
+
 ## Documentation
 
 - **[fractran-overview.md](fractran-overview.md)** — module-by-module tour: the
