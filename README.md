@@ -173,7 +173,10 @@ python3 -c "from fractran.plot import plot_conway; from fractran.programs import
            c=make_add(); plot_conway(c.fractions, c.start(a=3,b=4), 'add.png')"
 ```
 
-<img src="assets/conway_add.png" width="440" alt="Conway-style register-machine flowchart of compiled add: control states as circular nodes, fractions on directed edges, arrowhead count showing priority">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/conway_add.png">
+  <img src="assets/conway_add_light.png" width="300" alt="Conway-style register-machine flowchart of compiled add: control states as circular nodes, fractions on directed edges, arrowhead count showing priority">
+</picture>
 
 
 ### Themes
