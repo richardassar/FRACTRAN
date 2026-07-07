@@ -106,7 +106,22 @@ class Style:
     figsize: float = 14.0
 
 
-STYLE = Style()
+STYLE = Style()  # the default (dark) theme
+
+#: ready-made themes; pass one as ``style=`` to any plot function, or build your own
+#: ``Style(...)``. ``bg=None`` renders on a transparent background.
+THEMES = {
+    "dark": STYLE,
+    "light": Style(bg="#f6f3ec", node_floor=0.05, edge_alpha=0.9, tail_dim=0.62,
+                   title_color="#1b1b1b", node_edge_lw=0.0),
+    "paper": Style(bg="#faf7ef", node_cmap="plasma", node_floor=0.04, edge_cmap="hsv",
+                   edge_alpha=0.9, tail_dim=0.62, title_color="#241f18"),
+    "transparent": Style(bg=None),
+}
+
+
+def _facecolor(style):
+    return style.bg if style.bg else "none"
 
 
 def _starts_list(starts):
@@ -364,7 +379,7 @@ def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4,
     nodes = list(nodes)
     pos = graph_layout(nodes, efrac)
     rows = math.ceil(len(fields) / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5.0, rows * 5.0), facecolor=style.bg)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5.0, rows * 5.0), facecolor=_facecolor(style))
     axes = np.atleast_1d(axes).flat
     for ax, field in zip(axes, fields):
         draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, field), len(prog), style)
@@ -373,7 +388,7 @@ def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4,
         ax.set_facecolor(style.bg)
         ax.set_axis_off()
     fig.tight_layout()
-    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.2)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight", pad_inches=0.2, transparent=style.bg is None)
     plt.close(fig)
     return outfile
 
@@ -394,7 +409,7 @@ def draw_graph(ax, nodes, efrac, pos, values, nfrac, style=STYLE):
     from matplotlib.collections import LineCollection
 
     nodes = list(nodes)
-    ax.set_facecolor(style.bg)
+    ax.set_facecolor(_facecolor(style))
     ecmap = plt.get_cmap(style.edge_cmap)
     segs, cols = [], []
     for (a, b), fi in efrac.items():
@@ -415,7 +430,7 @@ def draw_graph(ax, nodes, efrac, pos, values, nfrac, style=STYLE):
         vn = np.full(len(v), 0.6)
     ax.scatter([pos[k][0] for k in nodes], [pos[k][1] for k in nodes],
                c=plt.get_cmap(style.node_cmap)(vn), s=style.node_size, alpha=style.node_alpha,
-               edgecolors=style.bg, linewidths=style.node_edge_lw, zorder=3)
+               edgecolors=_facecolor(style), linewidths=style.node_edge_lw, zorder=3)
     ax.set_axis_off()
     ax.margins(0.03)
 
@@ -429,11 +444,100 @@ def plot_multiway(prog, starts, outfile, max_states=1000, node_by="depth",
     pos = graph_layout(nodes, efrac)
     values = node_field(nodes, efrac, sources, node_by)
 
-    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=style.bg)
+    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=_facecolor(style))
     draw_graph(ax, nodes, efrac, pos, values, len(prog), style)
     if title:
         ax.set_title(title, color=style.title_color, fontsize=15)
-    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.12)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight",
+                pad_inches=0.12, transparent=style.bg is None)
+    plt.close(fig)
+    return outfile, len(nodes), len(efrac)
+
+
+def _layered_layout(G, sources):
+    """Top-down flowchart layout: y = -(BFS depth from source), x spread per layer."""
+    from collections import deque
+    depth = {}
+    q = deque()
+    for s in sources:
+        if s in G:
+            depth[s] = 0
+            q.append(s)
+    UG = G.to_undirected()
+    while q:
+        u = q.popleft()
+        for v in UG[u]:
+            if v not in depth:
+                depth[v] = depth[u] + 1
+                q.append(v)
+    layers = {}
+    for k in G.nodes:
+        layers.setdefault(depth.get(k, 0), []).append(k)
+    pos = {}
+    for d, ks in layers.items():
+        m = len(ks)
+        for i, k in enumerate(sorted(ks, key=lambda z: as_int(z))):
+            pos[k] = ((i - (m - 1) / 2) * 1.6, -float(d))
+    return pos
+
+
+def plot_conway(prog, starts, outfile, max_states=60, style=None, layout="dot",
+                node_color=None, label_color=None, title=None):
+    """Conway-style diagram (a display mode): the reachability graph drawn as a
+    flowchart -- integer states as labelled circular nodes, and each applicable
+    fraction as a *directed, labelled* edge (coloured by which fraction fired).
+    Best for small programs/inputs where the state numbers stay readable. Uses a
+    graphviz 'dot' layout when available, else an energy layout. Defaults to the
+    light theme; pass any ``style`` (``THEMES[...]`` or a custom ``Style``)."""
+    import networkx as nx
+
+    style = style or THEMES["light"]
+    light = style.bg is None or (isinstance(style.bg, str) and style.bg[1:3].lower() > "88")
+    node_color = node_color or ("#eef2f7" if light else "#1c2230")
+    label_color = label_color or ("#12161c" if light else "#e6edf3")
+
+    nodes, efrac, sources = build_multiway(prog, starts, max_states)
+    G = nx.DiGraph()
+    G.add_nodes_from(nodes)
+    for (a, b), fi in efrac.items():
+        G.add_edge(a, b, frac=f"{prog[fi].num}/{prog[fi].den}", fidx=fi)
+
+    pos = None
+    if layout == "dot":
+        try:
+            from networkx.drawing.nx_pydot import graphviz_layout
+            pos = graphviz_layout(G, prog="dot")
+        except Exception:
+            pos = None
+    if pos is None:
+        pos = _layered_layout(G, sources)
+
+    ecmap = plt.get_cmap(style.edge_cmap)
+    nf = max(1, len(prog))
+    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=_facecolor(style))
+    ax.set_facecolor(_facecolor(style))
+    for a, b, data in G.edges(data=True):
+        col = ecmap((data["fidx"] % nf + 0.5) / nf)
+        rad = 0.1 if (b, a) not in G.edges else 0.16  # curve reciprocal pairs apart
+        ax.annotate("", xy=pos[b], xytext=pos[a],
+                    arrowprops=dict(arrowstyle="-|>", color=col, lw=1.6, shrinkA=13, shrinkB=13,
+                                    connectionstyle=f"arc3,rad={rad}"), zorder=2)
+    for k in G.nodes:
+        x, y = pos[k]
+        ax.scatter([x], [y], s=560, c=node_color, edgecolors=label_color, linewidths=1.0, zorder=3)
+        ax.text(x, y, str(as_int(k)), ha="center", va="center", color=label_color,
+                fontsize=8, fontweight="bold", zorder=4)
+    for a, b, data in G.edges(data=True):
+        xm, ym = (pos[a][0] + pos[b][0]) / 2, (pos[a][1] + pos[b][1]) / 2
+        ax.text(xm, ym, data["frac"], color=label_color, fontsize=7, ha="center", va="center",
+                bbox=dict(boxstyle="round,pad=0.12", fc=_facecolor(style), ec="none", alpha=0.75),
+                zorder=5)
+    ax.set_axis_off()
+    ax.margins(0.08)
+    if title:
+        ax.set_title(title, color=style.title_color, fontsize=14)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight",
+                pad_inches=0.15, transparent=style.bg is None)
     plt.close(fig)
     return outfile, len(nodes), len(efrac)
 
@@ -446,7 +550,7 @@ def plot_multiway_montage(specs, outfile, max_states=220, cols=3, node_by="depth
     import numpy as np
 
     rows = math.ceil(len(specs) / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.4, rows * 4.4), facecolor=style.bg)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.4, rows * 4.4), facecolor=_facecolor(style))
     axes = np.atleast_1d(axes).flat
     for ax, (title, prog, starts) in zip(axes, specs):
         nodes, efrac, sources = build_multiway(prog, starts, max_states)
@@ -458,7 +562,7 @@ def plot_multiway_montage(specs, outfile, max_states=220, cols=3, node_by="depth
         ax.set_facecolor(style.bg)
         ax.set_axis_off()
     fig.tight_layout()
-    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.2)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight", pad_inches=0.2, transparent=style.bg is None)
     plt.close(fig)
     return outfile
 
@@ -595,11 +699,11 @@ def plot_network(prog, start, outfile, max_states=4000, layout="kamada",
     else:
         pos = graph_layout(nodes, efrac)
 
-    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=style.bg)
+    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=_facecolor(style))
     draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, node_by), len(prog), style)
     if title:
         ax.set_title(title, color=style.title_color, fontsize=14)
-    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.15)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight", pad_inches=0.15, transparent=style.bg is None)
     plt.close(fig)
     return outfile, len(nodes), len(efrac)
 
