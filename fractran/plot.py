@@ -92,10 +92,10 @@ from dataclasses import dataclass, field  # noqa: E402
 class Style:
     """One place for the look of every graph image; tweaks propagate to all."""
     bg: str = "#0a0d12"
-    node_size: float = 11.0
+    node_size: float = 9.0
     node_cmap: str = "turbo"       # bright across its whole range
     node_floor: float = 0.10       # skip the darkest 10% of the node cmap
-    node_alpha: float = 1.0
+    node_alpha: float = 0.8        # slightly translucent vertices
     node_edge_lw: float = 0.0
     edge_cmap: str = "hsv"         # saturated / no dark colours, keyed by fraction
     edge_lw: float = 0.7
@@ -281,6 +281,53 @@ def heat_kernel(nodes, efrac, sources, t=5.0):
     return [float(h[idx[nd]]) for nd in nodes]
 
 
+def graph_wavelet(nodes, efrac, sources, t1=1.0, t2=4.0):
+    """A spectral graph wavelet from the source: (e^{-t1 L} - e^{-t2 L}) delta -- a
+    difference-of-heat-kernels band-pass, localized and signed (SGWT flavour).
+    Vary (t1, t2) for the scale."""
+    import numpy as np
+    from scipy.sparse.linalg import expm_multiply
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    x0 = np.zeros(n)
+    for s in sources:
+        if s in idx:
+            x0[idx[s]] = 1.0
+    if x0.sum() == 0 and n:
+        x0[0] = 1.0
+    try:
+        w = expm_multiply(-t1 * L, x0) - expm_multiply(-t2 * L, x0)
+    except Exception:
+        w = np.zeros(n)
+    return [float(w[idx[nd]]) for nd in nodes]
+
+
+def commute_resistance(nodes, efrac, sources, modes=12):
+    """Effective resistance / commute distance from the source, as a truncated
+    spectral sum R_i = sum_{k>=1} (u_k(s) - u_k(i))^2 / lambda_k over the low
+    graph-Fourier modes -- the commute-time embedding coordinate to the source."""
+    import numpy as np
+    from scipy.sparse.linalg import eigsh
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    if n < 4:
+        return [0.0] * n
+    modes = min(modes, n - 2)
+    try:
+        vals, vecs = eigsh(L, k=modes + 1, which="SA", tol=1e-3, maxiter=8000)
+    except Exception:
+        return [0.0] * n
+    s = idx.get(sources[0], 0) if sources else 0
+    R = np.zeros(n)
+    for j in range(len(vals)):
+        if vals[j] > 1e-8:
+            R += (vecs[s, j] - vecs[:, j]) ** 2 / vals[j]
+    return [float(R[idx[nd]]) for nd in nodes]
+
+
+#: node-colouring fields available to ``node_field`` / ``plot_multiway`` / gallery
+NODE_FIELDS = ("depth", "logn", "fiedler", "harmonic2", "harmonic3",
+               "chebyshev", "wavelet", "markov", "stationary", "heat", "commute")
+
+
 def node_field(nodes, efrac, sources, field):
     """Dispatch a node-colouring field name to its values (spectral or structural)."""
     if field == "depth":
@@ -293,6 +340,10 @@ def node_field(nodes, efrac, sources, field):
         return laplacian_harmonic(nodes, efrac, int(field[len("harmonic"):]))
     if field == "chebyshev":
         return chebyshev_response(nodes, efrac, sources)
+    if field == "wavelet":
+        return graph_wavelet(nodes, efrac, sources)
+    if field == "commute":
+        return commute_resistance(nodes, efrac, sources)
     if field == "markov":
         return markov_mode(nodes, efrac)
     if field == "stationary":
@@ -387,73 +438,27 @@ def plot_multiway(prog, starts, outfile, max_states=1000, node_by="depth",
     return outfile, len(nodes), len(efrac)
 
 
-def plot_multiway_montage(specs, outfile, max_states=220, cols=3, bg="#0d1117"):
-    """Grid of MULTIWAY graphs -- every applicable fraction fired at every state
-    (integer states only) -- one panel per (title, program, [starts]). The
-    nondeterministic reachability graph is drawn grey; the deterministic FRACTRAN
-    execution from each start is highlighted in colour. Two-prime programs are
-    laid out on the exponent lattice, others by a spring layout.
-    """
+def plot_multiway_montage(specs, outfile, max_states=220, cols=3, node_by="depth", style=STYLE):
+    """Grid of MULTIWAY graphs (one panel per (title, program, start-or-[starts]))
+    drawn through the shared Style / draw_graph, nodes coloured by ``node_by``."""
     import math
 
-    import networkx as nx
     import numpy as np
-    from matplotlib import cm
-    from matplotlib.collections import LineCollection
-
-    from .core import factorize, run_iter
 
     rows = math.ceil(len(specs) / cols)
-    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.3, rows * 4.3), facecolor=bg)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.4, rows * 4.4), facecolor=style.bg)
     axes = np.atleast_1d(axes).flat
-
     for ax, (title, prog, starts) in zip(axes, specs):
-        ax.set_facecolor(bg)
-        G = nx.DiGraph()
-        seen = {}
-        for s in starts:
-            r = reachable(prog, s, max_states=max_states)
-            seen.update(r["seen"])
-            for k, outs in r["graph"].items():
-                G.add_node(k)
-                for _, nk in outs:
-                    G.add_edge(k, nk)
-        primes = sorted({p for st in seen.values() for p in st})
-        if len(primes) == 2:
-            pos = {k: (seen[k].get(primes[0], 0), seen[k].get(primes[1], 0)) for k in G.nodes}
-            ax.set_aspect("equal")
-        else:
-            pos = nx.spring_layout(G, seed=2, iterations=90)
-
-        segs = [[pos[a], pos[b]] for a, b in G.edges()]
-        ax.add_collection(LineCollection(segs, colors="#7c8899",
-                                         linewidths=0.5, alpha=0.28, zorder=1))
-        ax.scatter([pos[k][0] for k in G.nodes], [pos[k][1] for k in G.nodes],
-                   s=14, c="#4e79a7", edgecolors="none", zorder=2)
-
-        cmap = cm.get_cmap("turbo", max(2, len(starts)))
-        for j, s in enumerate(starts):
-            st = factorize(s) if isinstance(s, int) else dict(s)
-            path = [_key(st)]
-            work = dict(st)
-            for i, (_, cur) in enumerate(run_iter(prog, work)):
-                path.append(_key(cur))
-                if i > max_states:
-                    break
-            pts = np.array([pos[k] for k in path if k in pos])
-            if len(pts):
-                ax.plot(pts[:, 0], pts[:, 1], color=cmap(j), lw=1.7, alpha=0.95, zorder=4)
-                ax.scatter([pts[0, 0]], [pts[0, 1]], c=[cmap(j)], s=42,
-                           edgecolors="white", linewidths=0.5, zorder=5)
-        tag = f"  ({len(G)} states)" if not r["truncated"] else f"  ({len(G)}+ states)"
-        ax.set_title(title + tag, color="#e6edf3", fontsize=9)
+        nodes, efrac, sources = build_multiway(prog, starts, max_states)
+        nodes = list(nodes)
+        pos = graph_layout(nodes, efrac)
+        draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, node_by), len(prog), style)
+        ax.set_title(f"{title}  ({len(nodes)})", color=style.title_color, fontsize=10)
+    for ax in list(axes)[len(specs):]:
+        ax.set_facecolor(style.bg)
         ax.set_axis_off()
-
-    for ax in list(axes):
-        if not ax.has_data() and not ax.get_title():
-            ax.set_visible(False)
     fig.tight_layout()
-    fig.savefig(outfile, dpi=140, bbox_inches="tight", facecolor=bg, pad_inches=0.2)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.2)
     plt.close(fig)
     return outfile
 
@@ -573,49 +578,30 @@ def plot_execution(prog, starts, outfile, max_states=4000, layout="spring",
 
 
 def plot_network(prog, start, outfile, max_states=4000, layout="kamada",
-                 cmap="plasma", bg="#0d1117", node_size=70, edge_alpha=0.28,
-                 title=None):
-    """Draw the reachability graph as a styled network: force/energy layout,
-    nodes coloured by log(n), thin translucent edges, no labels. For squarefree
-    starts the reachable set is a Boolean/divisor lattice (a hypercube)."""
+                 node_by="logn", style=STYLE, title=None):
+    """Draw a reachability graph as a styled network through the shared Style /
+    draw_graph. For squarefree starts the reachable set is a Boolean/divisor
+    lattice (a hypercube). ``layout`` in {"kamada","spring","spectral"};
+    ``node_by`` is any field from ``NODE_FIELDS``."""
     import networkx as nx
-    import numpy as np
 
-    r = reachable(prog, start, max_states=max_states)
-    G = nx.DiGraph()
-    G.add_nodes_from(r["seen"])
-    for k, outs in r["graph"].items():
-        for _, nk in outs:
-            G.add_edge(k, nk)
-    if layout == "kamada":
-        pos = nx.kamada_kawai_layout(G.to_undirected())
-    elif layout == "spectral":
-        pos = nx.spectral_layout(G.to_undirected())
+    nodes, efrac, sources = build_multiway(prog, start, max_states)
+    nodes = list(nodes)
+    if layout in ("kamada", "spectral"):
+        G = nx.Graph()
+        G.add_nodes_from(nodes)
+        G.add_edges_from(efrac.keys())
+        pos = (nx.kamada_kawai_layout(G) if layout == "kamada" else nx.spectral_layout(G))
     else:
-        pos = nx.spring_layout(G, seed=3, iterations=250, k=None)
+        pos = graph_layout(nodes, efrac)
 
-    nodes = list(G.nodes)
-    xs = np.array([pos[k][0] for k in nodes])
-    ys = np.array([pos[k][1] for k in nodes])
-    vals = np.array([np.log(as_int(k)) if as_int(k) > 1 else 0.0 for k in nodes])
-
-    fig, ax = plt.subplots(figsize=(10, 10), facecolor=bg)
-    ax.set_facecolor(bg)
-    segs = np.array([[pos[a], pos[b]] for a, b in G.edges()])
-    from matplotlib.collections import LineCollection
-
-    ax.add_collection(LineCollection(segs, colors="#aab4c4", linewidths=0.7,
-                                     alpha=edge_alpha, zorder=1))
-    ax.scatter(xs, ys, c=vals, cmap=cmap, s=node_size, edgecolors="white",
-               linewidths=0.35, zorder=3)
-    ax.set_axis_off()
-    ax.margins(0.06)
-    ax.autoscale_view()
+    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=style.bg)
+    draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, node_by), len(prog), style)
     if title:
-        ax.set_title(title, color="#e6edf3", fontsize=13)
-    fig.savefig(outfile, dpi=150, bbox_inches="tight", facecolor=bg, pad_inches=0.15)
+        ax.set_title(title, color=style.title_color, fontsize=14)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.15)
     plt.close(fig)
-    return outfile, len(nodes), G.number_of_edges()
+    return outfile, len(nodes), len(efrac)
 
 
 def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None):
