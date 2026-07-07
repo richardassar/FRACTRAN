@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+
+# native build output (regenerate with `make -C native`)
+native/fractran_core
+
+# generated artifacts
+calc_program.fractran
