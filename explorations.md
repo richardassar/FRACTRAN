@@ -2,8 +2,9 @@
 
 *A companion to [theory.md](theory.md) collecting the deeper and more speculative
 threads: the Bost–Connes bridge to $\zeta$, the two objects named after Weil, the
-several continuum limits, and (later) spectral / Fourier structure. Rigor level is
-flagged per item: **[established]**, **[heuristic]**, **[research direction]**.*
+several continuum limits, spectral / Fourier structure, and RHGAME (Robin's
+inequality as a fraction list). Rigor level is flagged per item: **[established]**,
+**[heuristic]**, **[research direction]**.*
 
 ---
 
@@ -226,15 +227,15 @@ orthant boundary conditions. Computed by `fractran/spectral.py`.
 
 ---
 
-## 5. RHGAME, and whether this can approach a proof of RH
+## 5. RHGAME — Robin's inequality as a fraction list
 
 **The construction.**  Robin's theorem [Robin 1984]: RH $\iff
 \sigma(n)<e^{\gamma}\,n\,\ln\ln n$ for all $n>5040$, where $\sigma$ is the
 sum-of-divisors function (the inequality fails at exactly $27$ integers, all
 $\le 5040$). So a machine that enumerates $n>5040$, computes $\sigma(n)$, and
-**halts iff the inequality is violated halts iff RH is false**. This is the
-FRACTRAN sibling of the explicit RH Turing machines [Yedidia–Aaronson 2016] and
-the Davis–Matiyasevich–Robinson Diophantine route (the same reduction chain
+**halts iff the inequality is ever violated — i.e. halts iff RH is false**. This
+is the FRACTRAN sibling of the explicit RH Turing machines [Yedidia–Aaronson 2016]
+and the Davis–Matiyasevich–Robinson Diophantine route (the same reduction chain
 $\textsf{MM}\preceq\textsf{FRACTRAN}\preceq\textsf{DIO}$). `fractran/rhgame.py`
 gives the Python reference search plus the **compiled FRACTRAN kernel**
 `make_sigma` (71 fractions) that computes $\sigma(n)$ as an actual fraction list;
@@ -250,42 +251,25 @@ certified upper bound — sound (halt $\Rightarrow$ genuine violation) and compl
 is the clean integer heart and is what we compile; the precision management is
 computable but large and is specified rather than compiled here.
 
-**Could this approach a proof of RH?  No — and the reason is instructive.**
+**Siblings and lineage.**  RHGAME sits in a well-populated computational lineage.
+The reduction chain $\textsf{MM}\preceq\textsf{FRACTRAN}\preceq\textsf{DIO}$ also
+yields the Diophantine form (Davis–Matiyasevich–Robinson) and the explicit RH
+Turing machines [Yedidia–Aaronson 2016]; RHGAME is the FRACTRAN member of that
+family — RH written as "this fraction list never halts." Computation has a real
+track record around RH: large-scale verification along the critical line, and — the
+cautionary counterpoint — the refutation of over-strong conjectures once believed,
+such as the Mertens conjecture $|M(n)|<\sqrt n$, disproved by Odlyzko–te Riele.
+RHGAME's value is as a concrete artifact: RH as a specific, runnable object on the
+shared monoid $\mathbb{N}^{\times}$.
 
-- **A reformulation is not a proof.** "RH $\iff$ this program never halts" restates
-  RH; proving the non-halting *is* proving RH, with nothing gained. The two are
-  logically equivalent, so the encoding transfers all the difficulty and adds no
-  leverage.
-- **Undecidability does not apply.** The general halting problem is undecidable,
-  but RH is a *single fixed instance*; undecidability of the family says nothing
-  about it. There is no "it might be independent" escape here either — RH is
-  $\Pi_1^0$, and a $\Pi_1^0$ statement independent of a sound theory would be
-  *true*, but that still is not a proof.
-- **It discards the structure a proof needs.** The computational encoding throws
-  away the zeta zeros, the explicit formula, and Weil positivity — precisely the
-  analytic machinery every serious attack uses. It is a *syntactic* restatement.
-- **The obstruction is exactly §3B / theory §7.** Certifying non-halting means
-  exhibiting a termination/non-termination certificate — for this family, a
-  monotone height (Lyapunov function). §3B shows the height drift can be zero or
-  balanced and §7 that no monotone height exists for the universal family; that
-  absence is the computational face of RH's hardness. A certificate here would in
-  effect be a proof of RH by analytic means smuggled in.
-
-**Where proof-potential actually lives.** Not on the computational side but on the
-**spectral** one — the Bost–Connes / Connes–Consani programme (§2), Weil positivity
-of the quadratic form. FRACTRAN's contribution to *that* world is computation on
-the shared monoid $\mathbb{N}^{\times}$, not analysis, so it is a companion and an
-instrument, not a proof route. RHGAME's honest value is as (i) a concrete artifact
-— RH as a specific fraction list — and (ii) a member of the *computational lineage*
-that has genuinely served RH: large-scale verification, and the disproof of
-over-strong conjectures (the Mertens conjecture $|M(n)|<\sqrt n$, refuted by
-Odlyzko–te Riele). It searches; it does not prove.
-
-*(The spectral tools of §4 are implemented in `fractran/spectral.py`
-(`laplacian_modes`, `fiedler`, `dispersion_grid`) and the fluid limit of §3C in
+**Related spectral structure.**  The analytic machinery around RH — the zeta
+zeros, the explicit formula, Weil positivity — lives on the spectral side: the
+Bost–Connes / Connes–Consani programme (§2) and the graph-Fourier picture (§4).
+Those spectral tools are implemented in `fractran/spectral.py` (`laplacian_modes`,
+`fiedler`, `dispersion_grid`) and the fluid limit of §3C in
 `fractran/continuum.py`; `modes_demo.py` and `continuum_demo.py` confirm
 zero-drift $\leftrightarrow$ height-stability and zero-modes $\leftrightarrow$
-conserved level sets.)*
+conserved level sets.
 
 ---
 

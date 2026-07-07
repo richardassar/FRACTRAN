@@ -1,4 +1,10 @@
-That last fetch also let me correct the canonical PRIMEGAME list (it ends `… 13/11, 15/2, 1/7, 55/1` — 14 fractions). Now I've got enough to go deep. Here's the whole landscape, in the order you laid it out.
+# FRACTRAN — design and implementation overview
+
+A module-by-module tour of the toolchain and the theory it rests on, built up in
+the order the pieces depend on one another. Companion documents: the mathematics in
+[theory.md](theory.md), the deeper and more speculative threads in
+[explorations.md](explorations.md), and the runnable entry points in the
+[README](README.md).
 
 ---
 

@@ -1,15 +1,15 @@
-# fractran
-
-![Depth-coloured multiway graphs of six FRACTRAN programs — fibonacci, the Lomont self-interpreter, PIGAME, PRIMEGAME, Conway's multiplier, and RHGAME. Each vertex is an integer state, each edge a fraction firing, and colour is BFS depth from the start.](assets/hero.png)
-
-<sub>*Multiway graphs of six FRACTRAN programs (left → right: `fibonacci`, the Lomont
-self-interpreter, `PIGAME`, `PRIMEGAME`, Conway's `MULTIPLY`, `RHGAME`). Every integer
-state is a vertex; every applicable fraction is an edge (faded dim→bright along its
-direction); colour is BFS depth from the start.*</sub>
+# FRACTRAN
 
 A complete FRACTRAN toolchain — interpreter, compiler, loop accelerator, native
 C++/GMP core, a self-interpreter, and a pile of runnable I/O programs — built up
 from Conway's "just multiply fractions."
+
+![Depth-coloured multiway graphs of six FRACTRAN programs — fibonacci, the Lomont self-interpreter, PIGAME, PRIMEGAME, Conway's multiplier, and RHGAME. Each vertex is an integer state, each edge a fraction firing, and colour is BFS depth from the start.](assets/hero.png)
+
+<sub>*Multiway graphs of six FRACTRAN programs (left → right: fibonacci, the Lomont
+self-interpreter, PIGAME, PRIMEGAME, Conway's MULTIPLY, RHGAME). Every integer
+state is a vertex; every applicable fraction is an edge (faded dim→bright along its
+direction); colour is BFS depth from the start.*</sub>
 
 ## What is FRACTRAN?
 
@@ -191,7 +191,7 @@ background colour and every other setting is user-controllable from that one obj
   universality, and the genus-0/1 (elliptic) boundary.
 - **[explorations.md](explorations.md)** — deeper threads: the Bost–Connes bridge
   to ζ, the two Weils, continuum limits, graph Fourier = the Pontryagin transform,
-  and RHGAME.
+  and RHGAME (Robin's inequality compiled to a fraction list).
 
 ## Architecture
 

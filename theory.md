@@ -393,6 +393,10 @@ that shares those analytic tools but none of FRACTRAN's mechanism.**
   recent $\sqrt 2$ programs via Catalan's product and Newton–Raphson
   [Kaushik–Murphy–Weed 2024] show the height dynamics tracking a real limit — a
   bridge from the discrete lattice walk to classical analysis.
+- **Arithmetic functions as fraction lists.** Number-theoretic functions compile
+  directly too: the $\sigma(n)$ (sum-of-divisors) kernel in `rhgame.py` is a
+  71-fraction machine, the concrete FRACTRAN member of the reduction chain
+  $\textsf{MM}\preceq\textsf{FRACTRAN}\preceq\textsf{DIO}$ (explorations §5).
 
 ---
 
