@@ -85,6 +85,77 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
     return outfile, len(nodes), sorted(as_int(k) for k in sinks)
 
 
+def plot_multiway_montage(specs, outfile, max_states=220, cols=3, bg="#0d1117"):
+    """Grid of MULTIWAY graphs -- every applicable fraction fired at every state
+    (integer states only) -- one panel per (title, program, [starts]). The
+    nondeterministic reachability graph is drawn grey; the deterministic FRACTRAN
+    execution from each start is highlighted in colour. Two-prime programs are
+    laid out on the exponent lattice, others by a spring layout.
+    """
+    import math
+
+    import networkx as nx
+    import numpy as np
+    from matplotlib import cm
+    from matplotlib.collections import LineCollection
+
+    from .core import factorize, run_iter
+
+    rows = math.ceil(len(specs) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 4.3, rows * 4.3), facecolor=bg)
+    axes = np.atleast_1d(axes).flat
+
+    for ax, (title, prog, starts) in zip(axes, specs):
+        ax.set_facecolor(bg)
+        G = nx.DiGraph()
+        seen = {}
+        for s in starts:
+            r = reachable(prog, s, max_states=max_states)
+            seen.update(r["seen"])
+            for k, outs in r["graph"].items():
+                G.add_node(k)
+                for _, nk in outs:
+                    G.add_edge(k, nk)
+        primes = sorted({p for st in seen.values() for p in st})
+        if len(primes) == 2:
+            pos = {k: (seen[k].get(primes[0], 0), seen[k].get(primes[1], 0)) for k in G.nodes}
+            ax.set_aspect("equal")
+        else:
+            pos = nx.spring_layout(G, seed=2, iterations=90)
+
+        segs = [[pos[a], pos[b]] for a, b in G.edges()]
+        ax.add_collection(LineCollection(segs, colors="#7c8899",
+                                         linewidths=0.5, alpha=0.28, zorder=1))
+        ax.scatter([pos[k][0] for k in G.nodes], [pos[k][1] for k in G.nodes],
+                   s=14, c="#4e79a7", edgecolors="none", zorder=2)
+
+        cmap = cm.get_cmap("turbo", max(2, len(starts)))
+        for j, s in enumerate(starts):
+            st = factorize(s) if isinstance(s, int) else dict(s)
+            path = [_key(st)]
+            work = dict(st)
+            for i, (_, cur) in enumerate(run_iter(prog, work)):
+                path.append(_key(cur))
+                if i > max_states:
+                    break
+            pts = np.array([pos[k] for k in path if k in pos])
+            if len(pts):
+                ax.plot(pts[:, 0], pts[:, 1], color=cmap(j), lw=1.7, alpha=0.95, zorder=4)
+                ax.scatter([pts[0, 0]], [pts[0, 1]], c=[cmap(j)], s=42,
+                           edgecolors="white", linewidths=0.5, zorder=5)
+        tag = f"  ({len(G)} states)" if not r["truncated"] else f"  ({len(G)}+ states)"
+        ax.set_title(title + tag, color="#e6edf3", fontsize=9)
+        ax.set_axis_off()
+
+    for ax in list(axes):
+        if not ax.has_data() and not ax.get_title():
+            ax.set_visible(False)
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=140, bbox_inches="tight", facecolor=bg, pad_inches=0.2)
+    plt.close(fig)
+    return outfile
+
+
 def collatz_map(n):
     return n // 2 if n % 2 == 0 else 3 * n + 1
 
