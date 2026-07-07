@@ -376,7 +376,8 @@ def node_field(nodes, efrac, sources, field):
     raise ValueError(f"unknown node field {field!r}")
 
 
-def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4, style=STYLE):
+def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4,
+                          style=STYLE, title_fontsize=28):
     """Same program lattice, painted by each spectral/structural field -- build the
     multiway graph and layout once, colour many ways."""
     import math
@@ -391,9 +392,9 @@ def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4,
     axes = np.atleast_1d(axes).flat
     for ax, field in zip(axes, fields):
         draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, field), len(prog), style)
-        ax.set_title(field, color=style.title_color, fontsize=13)
+        ax.set_title(field, color=style.title_color, fontsize=title_fontsize)
     for ax in list(axes)[len(fields):]:
-        ax.set_facecolor(style.bg)
+        ax.set_facecolor(_facecolor(style))
         ax.set_axis_off()
     fig.tight_layout()
     fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight", pad_inches=0.2, transparent=style.bg is None)
