@@ -193,7 +193,10 @@ the Pontryagin dual (`theory.md`/`explorations.md` §4):
 
 **Plot functions.** `plot_multiway(prog, starts, out, node_by=…)` — one lattice,
 one colouring. `plot_spectral_gallery(prog, start, out, fields)` — one lattice by
-many fields (layout computed once). `plot_network` — a reachability network with a
+many fields (layout computed once). `plot_diffusion_gallery(prog, start, out,
+kind=…)` — one lattice swept over a parameter: the heat kernel `exp(-tL)δ` over a
+series of times `t` (diffusion from the source toward the stationary state), or the
+spectral wavelet over a series of `(t1, t2)` scales. `plot_network` — a reachability network with a
 choice of layout (`kamada` for divisor-lattice hypercubes). `plot_multiway_montage`
 — a grid across programs. `plot_reachability` — the small labelled graph behind
 `reach.py --plot` and `plot_reach.py`. Plus line-art specials: `plot_collatz_coral`
@@ -214,9 +217,11 @@ the control states are recovered from the bare fraction list by `decompile.class
 heuristically. Layout uses graphviz `dot` (via `pydot`) when available, else the
 built-in layered fallback `_layered_layout`.
 
-**Themes.** Every renderer takes `style=`. `THEMES` provides `dark` (default),
-`light`, `paper`, and `transparent`; a `Style` with `bg=None` renders on a
-transparent background (`transparent=True` at save time). Construct any
+**Themes.** Every renderer — the node-graph ones *and* `plot_reachability`,
+`plot_collatz_coral`, `plot_spacetime` — takes `style=` and reads background, dpi,
+and text colour from it. `THEMES` provides `dark` (default), `light`, `paper`, and
+`transparent`; a `Style` with `bg=None` renders on a transparent background
+(`transparent=True` at save time). Construct any
 `Style(node_size=…, node_cmap=…, edge_cmap=…, node_alpha=…, bg=…)` and pass it —
 background colour and all other settings are user-controllable from that one object,
 and `draw_graph` honours it everywhere.
