@@ -1,8 +1,11 @@
 # fractran
 
+![Multiway graphs of six FRACTRAN programs, coloured by depth](assets/hero.png)
+
 A complete FRACTRAN toolchain — interpreter, compiler, loop accelerator, native
 C++/GMP core, a self-interpreter, and a pile of runnable I/O programs — built up
-from Conway's "just multiply fractions."
+from Conway's "just multiply fractions." The banner: the multiway graphs of six
+programs (fire every applicable fraction at every state), coloured by BFS depth.
 
 ## What is FRACTRAN?
 
