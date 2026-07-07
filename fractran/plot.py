@@ -85,6 +85,166 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
     return outfile, len(nodes), sorted(as_int(k) for k in sinks)
 
 
+def collatz_map(n):
+    return n // 2 if n % 2 == 0 else 3 * n + 1
+
+
+def plot_collatz_coral(N=2000, highlights=(27,), outfile="collatz.png",
+                       bg="#0b0e13", even_c="#4cc3ff", odd_c="#ff5d7a",
+                       hi_c="#ffd23f", step=1.0, title=None):
+    """The Collatz 'coral': overlay the trajectories of every start in 1..N under
+    the Collatz map (which the FRACTRAN `collatz` program computes step for step);
+    they all flow to 1 and merge into a tree, laid out by a parity turn (halving =
+    small turn one way, 3n+1 = larger turn the other). Highlighted starts are the
+    individual executions drawn bright over the coral."""
+    from collections import deque
+
+    import numpy as np
+    from matplotlib.collections import LineCollection
+
+    edges = set()
+    for start in range(1, N + 1):
+        x = start
+        while x != 1:
+            y = collatz_map(x)
+            edges.add((x, y))
+            x = y
+    pred = {}
+    for k, m in edges:
+        pred.setdefault(m, []).append(k)
+
+    pos = {1: np.zeros(2)}
+    ang = {1: 90.0}
+    q = deque([1])
+    while q:
+        n = q.popleft()
+        for m in sorted(pred.get(n, [])):
+            a = ang[n] + (7.0 if m % 2 == 0 else -20.0)
+            ang[m] = a
+            pos[m] = pos[n] + step * np.array([np.cos(np.radians(a)), np.sin(np.radians(a))])
+            q.append(m)
+
+    segs = [[pos[k], pos[m]] for k, m in edges if k in pos and m in pos]
+    cols = [even_c if k % 2 == 0 else odd_c for k, m in edges if k in pos and m in pos]
+
+    fig, ax = plt.subplots(figsize=(11, 11), facecolor=bg)
+    ax.set_facecolor(bg)
+    ax.add_collection(LineCollection(segs, colors=cols, linewidths=0.6, alpha=0.5))
+    for h in highlights:
+        pts, x = [], h
+        while x != 1 and x in pos:
+            pts.append(pos[x])
+            x = collatz_map(x)
+        pts.append(pos[1])
+        pts = np.array(pts)
+        ax.plot(pts[:, 0], pts[:, 1], color=hi_c, lw=2.4, alpha=0.95, zorder=5)
+        ax.scatter([pts[0, 0]], [pts[0, 1]], c=hi_c, s=40, zorder=6)
+    ax.set_axis_off()
+    ax.set_aspect("equal")
+    ax.autoscale_view()
+    if title:
+        ax.set_title(title, color="#e6edf3", fontsize=13)
+    fig.savefig(outfile, dpi=150, bbox_inches="tight", facecolor=bg, pad_inches=0.1)
+    plt.close(fig)
+    return outfile, len(pos), len(edges)
+
+
+def plot_execution(prog, starts, outfile, max_states=4000, layout="spring",
+                   bg="#0d1117", title=None):
+    """Draw the multiway reachability graph over a set of starts (grey) with each
+    deterministic FRACTRAN execution highlighted as a coloured path."""
+    import networkx as nx
+    import numpy as np
+    from matplotlib import cm
+
+    from .core import factorize, run_iter
+
+    if isinstance(starts, int):
+        starts = [starts]
+    G = nx.DiGraph()
+    trajs = []
+    for s in starts:
+        r = reachable(prog, s, max_states=max_states)
+        for k, outs in r["graph"].items():
+            G.add_node(k)
+            for _, nk in outs:
+                G.add_edge(k, nk)
+        st = factorize(s) if isinstance(s, int) else dict(s)
+        path = [_key(st)]
+        for i, (_, cur) in enumerate(run_iter(prog, st)):
+            path.append(_key(cur))
+            if i > max_states:
+                break
+        trajs.append(path)
+
+    pos = (nx.kamada_kawai_layout(G.to_undirected()) if layout == "kamada"
+           else nx.spring_layout(G, seed=3, iterations=200))
+    fig, ax = plt.subplots(figsize=(11, 11), facecolor=bg)
+    ax.set_facecolor(bg)
+    segs = [[pos[a], pos[b]] for a, b in G.edges()]
+    from matplotlib.collections import LineCollection
+
+    ax.add_collection(LineCollection(segs, colors="#8892a0", linewidths=0.5, alpha=0.25))
+    colors = cm.get_cmap("turbo", max(2, len(trajs)))
+    for j, path in enumerate(trajs):
+        pts = np.array([pos[k] for k in path if k in pos])
+        ax.plot(pts[:, 0], pts[:, 1], color=colors(j), lw=2.0, alpha=0.9, zorder=4)
+        ax.scatter([pts[0, 0]], [pts[0, 1]], c=[colors(j)], s=45, zorder=5)
+    ax.set_axis_off()
+    ax.autoscale_view()
+    if title:
+        ax.set_title(title, color="#e6edf3", fontsize=13)
+    fig.savefig(outfile, dpi=150, bbox_inches="tight", facecolor=bg, pad_inches=0.15)
+    plt.close(fig)
+    return outfile, G.number_of_nodes(), len(trajs)
+
+
+def plot_network(prog, start, outfile, max_states=4000, layout="kamada",
+                 cmap="plasma", bg="#0d1117", node_size=70, edge_alpha=0.28,
+                 title=None):
+    """Draw the reachability graph as a styled network: force/energy layout,
+    nodes coloured by log(n), thin translucent edges, no labels. For squarefree
+    starts the reachable set is a Boolean/divisor lattice (a hypercube)."""
+    import networkx as nx
+    import numpy as np
+
+    r = reachable(prog, start, max_states=max_states)
+    G = nx.DiGraph()
+    G.add_nodes_from(r["seen"])
+    for k, outs in r["graph"].items():
+        for _, nk in outs:
+            G.add_edge(k, nk)
+    if layout == "kamada":
+        pos = nx.kamada_kawai_layout(G.to_undirected())
+    elif layout == "spectral":
+        pos = nx.spectral_layout(G.to_undirected())
+    else:
+        pos = nx.spring_layout(G, seed=3, iterations=250, k=None)
+
+    nodes = list(G.nodes)
+    xs = np.array([pos[k][0] for k in nodes])
+    ys = np.array([pos[k][1] for k in nodes])
+    vals = np.array([np.log(as_int(k)) if as_int(k) > 1 else 0.0 for k in nodes])
+
+    fig, ax = plt.subplots(figsize=(10, 10), facecolor=bg)
+    ax.set_facecolor(bg)
+    segs = np.array([[pos[a], pos[b]] for a, b in G.edges()])
+    from matplotlib.collections import LineCollection
+
+    ax.add_collection(LineCollection(segs, colors="#aab4c4", linewidths=0.7,
+                                     alpha=edge_alpha, zorder=1))
+    ax.scatter(xs, ys, c=vals, cmap=cmap, s=node_size, edgecolors="white",
+               linewidths=0.35, zorder=3)
+    ax.set_axis_off()
+    ax.margins(0.06)
+    ax.autoscale_view()
+    if title:
+        ax.set_title(title, color="#e6edf3", fontsize=13)
+    fig.savefig(outfile, dpi=150, bbox_inches="tight", facecolor=bg, pad_inches=0.15)
+    plt.close(fig)
+    return outfile, len(nodes), G.number_of_edges()
+
+
 def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None):
     """Heatmap of the prime-exponent vector over a run: the FRACTRAN space-time
     diagram (rows = primes/registers, columns = steps, colour = exponent)."""
