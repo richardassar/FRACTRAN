@@ -19,7 +19,9 @@ from .core import factorize  # noqa: E402
 from .reachability import _key, as_int, reachable  # noqa: E402
 
 
-def plot_reachability(prog, start, outfile, max_states=400, title=None):
+def plot_reachability(prog, start, outfile, max_states=400, title=None, style=None):
+    style = style or STYLE
+    fg = style.title_color
     r = reachable(prog, start, max_states=max_states)
     seen, graph = r["seen"], r["graph"]
     nodes = list(seen)
@@ -48,7 +50,9 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
     xs = [pos[k][0] for k in nodes]
     ys = [pos[k][1] for k in nodes]
     span = max(max(xs) - min(xs), max(ys) - min(ys), 1)
-    fig, ax = plt.subplots(figsize=(1.2 + span * 1.1, 1.2 + span * 1.1))
+    fig, ax = plt.subplots(figsize=(1.2 + span * 1.1, 1.2 + span * 1.1),
+                           facecolor=_facecolor(style))
+    ax.set_facecolor(_facecolor(style))
 
     seen_edges = set()
     for k, outs in graph.items():
@@ -60,27 +64,31 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
             x1, y1 = pos[nk]
             curve = 0.0 if (nk, k) not in {(b, a) for a, b in seen_edges} else 0.12
             ax.annotate("", xy=(x1, y1), xytext=(x0, y0),
-                        arrowprops=dict(arrowstyle="-|>", color="#9aa4b2", lw=1.3,
+                        arrowprops=dict(arrowstyle="-|>", color=fg, alpha=0.55, lw=1.3,
                                         shrinkA=14, shrinkB=14,
                                         connectionstyle=f"arc3,rad={curve}"), zorder=1)
 
     colors = ["#59a14f" if k == start_key else "#e15759" if k in sinks else "#4e79a7"
               for k in nodes]
-    ax.scatter(xs, ys, s=780, c=colors, edgecolors="white", linewidths=1.5, zorder=3)
+    ax.scatter(xs, ys, s=780, c=colors, edgecolors=_facecolor(style), linewidths=1.5, zorder=3)
     for k in nodes:
         ax.text(pos[k][0], pos[k][1], str(as_int(k)), ha="center", va="center",
                 color="white", fontsize=9, fontweight="bold", zorder=4)
 
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
+    ax.set_xlabel(xlabel, color=fg)
+    ax.set_ylabel(ylabel, color=fg)
+    ax.tick_params(colors=fg)
     ax.set_title(title or f"reachability graph  ({len(nodes)} states"
-                 + ("" if not r["truncated"] else ", truncated") + ")")
+                 + ("" if not r["truncated"] else ", truncated") + ")", color=fg)
     ax.margins(0.15)
     ax.set_aspect("equal") if len(primes) <= 2 else None
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
+    for s in ("bottom", "left"):
+        ax.spines[s].set_color(fg)
     fig.tight_layout()
-    fig.savefig(outfile, dpi=130, bbox_inches="tight")
+    fig.savefig(outfile, dpi=style.dpi, bbox_inches="tight", facecolor=_facecolor(style),
+                transparent=style.bg is None)
     plt.close(fig)
     return outfile, len(nodes), sorted(as_int(k) for k in sinks)
 
@@ -481,6 +489,44 @@ def _layered_layout(G, sources):
     return pos
 
 
+def plot_diffusion_gallery(prog, start, outfile, kind="heat", values=None,
+                           max_states=1000, cols=4, style=STYLE):
+    """Same program lattice, a diffusion field swept over a parameter (build the
+    multiway graph and layout once). ``kind='heat'`` paints the heat kernel
+    exp(-tL)delta from the source at each time ``t`` in ``values`` (watch it spread);
+    ``kind='wavelet'`` paints the spectral graph wavelet at each ``(t1, t2)`` scale."""
+    import math
+
+    import numpy as np
+
+    if values is None:
+        values = ([0.5, 1, 2, 4, 8, 16, 32, 64] if kind == "heat"
+                  else [(0.5, 2), (1, 4), (2, 8), (4, 16), (8, 32), (16, 64)])
+    nodes, efrac, sources = build_multiway(prog, start, max_states)
+    nodes = list(nodes)
+    pos = graph_layout(nodes, efrac)
+    rows = math.ceil(len(values) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5.0, rows * 5.0), facecolor=_facecolor(style))
+    axes = np.atleast_1d(axes).flat
+    for ax, v in zip(axes, values):
+        if kind == "heat":
+            vals = heat_kernel(nodes, efrac, sources, t=v)
+            ttl = f"heat  t={v}"
+        else:
+            vals = graph_wavelet(nodes, efrac, sources, t1=v[0], t2=v[1])
+            ttl = f"wavelet  t={v[0]}–{v[1]}"
+        draw_graph(ax, nodes, efrac, pos, vals, len(prog), style)
+        ax.set_title(ttl, color=style.title_color, fontsize=13)
+    for ax in list(axes)[len(values):]:
+        ax.set_facecolor(_facecolor(style))
+        ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=style.dpi, facecolor=_facecolor(style), bbox_inches="tight",
+                pad_inches=0.2, transparent=style.bg is None)
+    plt.close(fig)
+    return outfile
+
+
 def plot_conway(prog, start, outfile, control_primes=None, style=None, title=None,
                 show_ops=True, rankdir="TB"):
     """Conway's flowchart, to his own 1987 Sec.7 convention, rendered with graphviz.
@@ -589,18 +635,22 @@ def collatz_map(n):
     return n // 2 if n % 2 == 0 else 3 * n + 1
 
 
-def plot_collatz_coral(N=2000, highlights=(27,), outfile="collatz.png",
-                       bg="#0b0e13", even_c="#4cc3ff", odd_c="#ff5d7a",
-                       hi_c="#ffd23f", step=1.0, title=None):
+def plot_collatz_coral(N=2000, highlights=(27,), outfile="collatz.png", style=None,
+                       even_c="#4cc3ff", odd_c="#ff5d7a", hi_c="#ffd23f",
+                       step=1.0, title=None):
     """The Collatz 'coral': overlay the trajectories of every start in 1..N under
     the Collatz map (which the FRACTRAN `collatz` program computes step for step);
     they all flow to 1 and merge into a tree, laid out by a parity turn (halving =
     small turn one way, 3n+1 = larger turn the other). Highlighted starts are the
-    individual executions drawn bright over the coral."""
+    individual executions drawn bright over the coral. Background/dpi come from the
+    shared Style; the parity colours stay meaningful."""
     from collections import deque
 
     import numpy as np
     from matplotlib.collections import LineCollection
+
+    style = style or STYLE
+    bg = _facecolor(style)
 
     edges = set()
     for start in range(1, N + 1):
@@ -643,8 +693,9 @@ def plot_collatz_coral(N=2000, highlights=(27,), outfile="collatz.png",
     ax.set_aspect("equal")
     ax.autoscale_view()
     if title:
-        ax.set_title(title, color="#e6edf3", fontsize=13)
-    fig.savefig(outfile, dpi=150, bbox_inches="tight", facecolor=bg, pad_inches=0.1)
+        ax.set_title(title, color=style.title_color, fontsize=13)
+    fig.savefig(outfile, dpi=style.dpi, bbox_inches="tight", facecolor=bg, pad_inches=0.1,
+                transparent=style.bg is None)
     plt.close(fig)
     return outfile, len(pos), len(edges)
 
@@ -726,13 +777,16 @@ def plot_network(prog, start, outfile, max_states=4000, layout="kamada",
     return outfile, len(nodes), len(efrac)
 
 
-def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None):
+def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None, style=None):
     """Heatmap of the prime-exponent vector over a run: the FRACTRAN space-time
-    diagram (rows = primes/registers, columns = steps, colour = exponent)."""
+    diagram (rows = primes/registers, columns = steps, colour = exponent).
+    Background/dpi come from the shared Style."""
     import numpy as np
 
     from .core import factorize, run_iter
 
+    style = style or STYLE
+    fg = style.title_color
     state = factorize(start) if isinstance(start, int) else dict(start)
     history = [dict(state)]
     for i, (_, s) in enumerate(run_iter(prog, state)):
@@ -742,16 +796,23 @@ def plot_spacetime(prog, start, steps, outfile, cmap="magma", title=None):
     primes = sorted({p for h in history for p in h})
     M = np.array([[h.get(p, 0) for p in primes] for h in history], float).T
 
-    fig, ax = plt.subplots(figsize=(min(14, 2 + len(history) / 90), 1 + len(primes) * 0.32))
+    fig, ax = plt.subplots(figsize=(min(14, 2 + len(history) / 90), 1 + len(primes) * 0.32),
+                           facecolor=_facecolor(style))
+    ax.set_facecolor(_facecolor(style))
     im = ax.imshow(M, aspect="auto", cmap=cmap, origin="lower", interpolation="nearest")
     ax.set_yticks(range(len(primes)))
     ax.set_yticklabels(primes, fontsize=7)
-    ax.set_xlabel("step")
-    ax.set_ylabel("prime (register)")
-    ax.set_title(title or f"space-time of the prime exponents ({len(history)} steps)")
-    fig.colorbar(im, ax=ax, label="exponent", fraction=0.025)
+    ax.set_xlabel("step", color=fg)
+    ax.set_ylabel("prime (register)", color=fg)
+    ax.tick_params(colors=fg)
+    ax.set_title(title or f"space-time of the prime exponents ({len(history)} steps)", color=fg)
+    cb = fig.colorbar(im, ax=ax, label="exponent", fraction=0.025)
+    cb.ax.yaxis.set_tick_params(color=fg)
+    cb.ax.yaxis.label.set_color(fg)
+    plt.setp(cb.ax.get_yticklabels(), color=fg)
     fig.tight_layout()
-    fig.savefig(outfile, dpi=130, bbox_inches="tight")
+    fig.savefig(outfile, dpi=style.dpi, bbox_inches="tight", facecolor=_facecolor(style),
+                transparent=style.bg is None)
     plt.close(fig)
     return outfile
 
