@@ -85,6 +85,158 @@ def plot_reachability(prog, start, outfile, max_states=400, title=None):
     return outfile, len(nodes), sorted(as_int(k) for k in sinks)
 
 
+from dataclasses import dataclass, field  # noqa: E402
+
+
+@dataclass
+class Style:
+    """One place for the look of every graph image; tweaks propagate to all."""
+    bg: str = "#0a0d12"
+    node_size: float = 11.0
+    node_cmap: str = "turbo"       # bright across its whole range
+    node_floor: float = 0.10       # skip the darkest 10% of the node cmap
+    node_alpha: float = 1.0
+    node_edge_lw: float = 0.0
+    edge_cmap: str = "hsv"         # saturated / no dark colours, keyed by fraction
+    edge_lw: float = 0.7
+    edge_alpha: float = 0.85
+    tail_dim: float = 0.55         # brightness of the direction "tail" (1 = no dim)
+    title_color: str = "#e6edf3"
+    dpi: int = 150
+    figsize: float = 14.0
+
+
+STYLE = Style()
+
+
+def _starts_list(starts):
+    return [starts] if isinstance(starts, (int, dict)) else list(starts)
+
+
+def build_multiway(prog, starts, max_states=1000):
+    """Multiway graph: fire every applicable fraction at every integer state,
+    iterated from the start(s). Returns (nodes, efrac{(a,b):fraction_index}, sources)."""
+    nodes, efrac, sources = set(), {}, []
+    for s in _starts_list(starts):
+        sources.append(_key(factorize(s) if isinstance(s, int) else dict(s)))
+        r = reachable(prog, s, max_states=max_states)
+        nodes |= set(r["seen"])
+        for k, outs in r["graph"].items():
+            for fi, nk in outs:
+                efrac[(k, nk)] = fi
+    return nodes, efrac, sources
+
+
+def node_depths(nodes, efrac, sources):
+    from collections import deque
+    adj = {}
+    for a, b in efrac:
+        adj.setdefault(a, set()).add(b)
+        adj.setdefault(b, set()).add(a)
+    depth = {s: 0 for s in sources if s in nodes}
+    q = deque(depth)
+    while q:
+        u = q.popleft()
+        for v in adj.get(u, ()):
+            if v not in depth:
+                depth[v] = depth[u] + 1
+                q.append(v)
+    return [depth.get(k, 0) for k in nodes]
+
+
+def logn_values(nodes):
+    import numpy as np
+    return [np.log(as_int(k)) if as_int(k) > 1 else 0.0 for k in nodes]
+
+
+def fiedler_values(nodes, efrac):
+    """The Fiedler vector (2nd graph-Fourier mode of the Laplacian) per node -- the
+    smallest non-trivial Pontryagin/graph-Fourier frequency, a smooth coordinate."""
+    import numpy as np
+    import scipy.sparse as sp
+    import scipy.sparse.linalg as spla
+
+    nodes = list(nodes)
+    idx = {k: i for i, k in enumerate(nodes)}
+    n = len(nodes)
+    rows, cols = [], []
+    for a, b in efrac:
+        if a in idx and b in idx:
+            rows += [idx[a], idx[b]]
+            cols += [idx[b], idx[a]]
+    if not rows or n < 3:
+        return [0.0] * n
+    A = (sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n)) > 0).astype(float)
+    L = sp.diags(np.asarray(A.sum(1)).ravel()) - A
+    try:
+        _vals, vecs = spla.eigsh(L, k=min(2, n - 1), which="SA", tol=1e-3, maxiter=5000)
+        fv = vecs[:, -1]
+    except Exception:
+        fv = np.zeros(n)
+    return list(fv)
+
+
+def graph_layout(nodes, efrac, seed=1, iterations=80):
+    import networkx as nx
+    G = nx.Graph()
+    G.add_nodes_from(nodes)
+    G.add_edges_from(efrac.keys())
+    return nx.spring_layout(G, seed=seed, iterations=iterations,
+                            k=1.4 / max(1, len(nodes) ** 0.5))
+
+
+def draw_graph(ax, nodes, efrac, pos, values, nfrac, style=STYLE):
+    """Shared renderer: fraction-coloured directed edges (dim tail -> bright head)
+    and nodes coloured by `values` through the style's node colormap."""
+    import numpy as np
+    from matplotlib.collections import LineCollection
+
+    nodes = list(nodes)
+    ax.set_facecolor(style.bg)
+    ecmap = plt.get_cmap(style.edge_cmap)
+    segs, cols = [], []
+    for (a, b), fi in efrac.items():
+        if a in pos and b in pos:
+            pa, pb = np.array(pos[a]), np.array(pos[b])
+            pm = (pa + pb) / 2
+            base = np.array(ecmap((fi % max(1, nfrac) + 0.5) / max(1, nfrac)))
+            tail = base.copy()
+            tail[:3] *= style.tail_dim
+            segs += [[pa, pm], [pm, pb]]
+            cols += [tail, base]
+    ax.add_collection(LineCollection(segs, colors=cols, linewidths=style.edge_lw,
+                                     alpha=style.edge_alpha, zorder=1))
+    v = np.array(values, float)
+    if v.max() > v.min():
+        vn = style.node_floor + (1 - style.node_floor) * (v - v.min()) / (v.max() - v.min())
+    else:
+        vn = np.full(len(v), 0.6)
+    ax.scatter([pos[k][0] for k in nodes], [pos[k][1] for k in nodes],
+               c=plt.get_cmap(style.node_cmap)(vn), s=style.node_size, alpha=style.node_alpha,
+               edgecolors=style.bg, linewidths=style.node_edge_lw, zorder=3)
+    ax.set_axis_off()
+    ax.margins(0.03)
+
+
+def plot_multiway(prog, starts, outfile, max_states=1000, node_by="depth",
+                  style=STYLE, title=None):
+    """Render the multiway graph. `node_by` in {"depth","logn","fiedler"} chooses
+    the node colouring (fiedler = the graph-Fourier / Pontryagin spectral mode)."""
+    nodes, efrac, sources = build_multiway(prog, starts, max_states)
+    pos = graph_layout(nodes, efrac)
+    values = {"depth": lambda: node_depths(nodes, efrac, sources),
+              "logn": lambda: logn_values(nodes),
+              "fiedler": lambda: fiedler_values(nodes, efrac)}[node_by]()
+
+    fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=style.bg)
+    draw_graph(ax, nodes, efrac, pos, values, len(prog), style)
+    if title:
+        ax.set_title(title, color=style.title_color, fontsize=15)
+    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.12)
+    plt.close(fig)
+    return outfile, len(nodes), len(efrac)
+
+
 def plot_multiway_montage(specs, outfile, max_states=220, cols=3, bg="#0d1117"):
     """Grid of MULTIWAY graphs -- every applicable fraction fired at every state
     (integer states only) -- one panel per (title, program, [starts]). The
