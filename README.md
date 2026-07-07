@@ -155,10 +155,10 @@ Conway drew FRACTRAN programs as **register-machine flowcharts** (his 1987 paper
 §7 "Beginners' Guide"): one node per program *line* / control state, each fraction
 a directed edge to the line it jumps to, the number of arrowheads giving that
 fraction's **priority** at the node (single = tried first, double = next), with
-self-loops, a start stub, and stop stubs. `plot_conway` reproduces this — it
-recovers the control states from the raw fraction list with the decompiler
-(`fractran/decompile.py`), so it draws the *finite, collapsed* machine, independent
-of the input value:
+self-loops, a start stub, and stop stubs. `plot_conway` reproduces this (rendered
+with graphviz) — it recovers the control states from the raw fraction list with the
+decompiler (`fractran/decompile.py`), so it draws the *finite, collapsed* machine,
+independent of the input value (needs the graphviz `dot` binary + `pydot`):
 
 ```sh
 python3 -c "from fractran.plot import plot_conway; from fractran.programs import make_add; \

@@ -2,4 +2,4 @@ numpy
 scipy
 matplotlib
 networkx
-pydot
+pydot          # Conway flowcharts (plot_conway); also needs the system graphviz `dot` binary
