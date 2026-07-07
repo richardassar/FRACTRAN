@@ -98,6 +98,41 @@ def symbol_stats(prog, samples=32):
     return float(min(vals)), float(max(vals))
 
 
+def laplacian_modes(prog, bounds):
+    """The graph-Fourier basis of a reachability box: eigenpairs of the symmetric
+    Laplacian, ascending. Returns states, eigenvalues, eigenvectors (columns)."""
+    g = region_graph(prog, bounds)
+    nodes = g["nodes"]
+    n = len(nodes)
+    idx = {k: i for i, k in enumerate(nodes)}
+    A = np.zeros((n, n))
+    for k, outs in g["edges"].items():
+        for nk in outs:
+            A[idx[k], idx[nk]] += 1.0
+    As = ((A + A.T) > 0).astype(float)
+    L = np.diag(As.sum(1)) - As
+    vals, vecs = np.linalg.eigh(L)
+    return {"states": [as_int(k) for k in nodes], "vals": vals, "vecs": vecs}
+
+
+def fiedler(prog, bounds, tol=1e-8):
+    """The Fiedler vector: eigenvector of the smallest nonzero graph frequency."""
+    m = laplacian_modes(prog, bounds)
+    i = int(np.searchsorted(m["vals"], tol))
+    return m["states"], float(m["vals"][i]), m["vecs"][:, i]
+
+
+def dispersion_grid(prog, samples=24):
+    """Sample |lambda(theta)| over the 2-torus (for a 2-prime program) -- the
+    amoeba: near-zero values mark the symbol's zero locus."""
+    primes, lam = dispersion(prog)
+    if len(primes) != 2:
+        raise ValueError("dispersion_grid needs a 2-prime program")
+    grid = np.linspace(0.0, 1.0, samples, endpoint=False)
+    M = np.array([[abs(lam((tx, ty))) for tx in grid] for ty in grid])
+    return primes, grid, M
+
+
 def region_spectrum(prog, bounds, tol=1e-8):
     """Graph-Fourier spectrum of a finite reachability box.
 

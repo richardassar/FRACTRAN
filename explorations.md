@@ -226,6 +226,69 @@ orthant boundary conditions. Computed by `fractran/spectral.py`.
 
 ---
 
+## 5. RHGAME, and whether this can approach a proof of RH
+
+**The construction.**  Robin's theorem [Robin 1984]: RH $\iff
+\sigma(n)<e^{\gamma}\,n\,\ln\ln n$ for all $n>5040$, where $\sigma$ is the
+sum-of-divisors function (the inequality fails at exactly $27$ integers, all
+$\le 5040$). So a machine that enumerates $n>5040$, computes $\sigma(n)$, and
+**halts iff the inequality is violated halts iff RH is false**. This is the
+FRACTRAN sibling of the explicit RH Turing machines [Yedidia–Aaronson 2016] and
+the Davis–Matiyasevich–Robinson Diophantine route (the same reduction chain
+$\textsf{MM}\preceq\textsf{FRACTRAN}\preceq\textsf{DIO}$). `fractran/rhgame.py`
+gives the Python reference search plus the **compiled FRACTRAN kernel**
+`make_sigma` (71 fractions) that computes $\sigma(n)$ as an actual fraction list;
+`rhgame_demo.py` verifies it and confirms no Robin violation up to $10^6$ (record
+ratio $\approx 1.7558$ at $n=10080$, below $e^{\gamma}\approx 1.7811$).
+
+**The transcendental subtlety.**  The bound $e^{\gamma}\,n\,\ln\ln n$ is
+irrational, so a *rigorous* RHGAME does not compute it exactly; it brackets it
+with rational **upper bounds of increasing precision** (rational approximations
+of $e^{\gamma}$ and the logarithms), and halts only when $\sigma(n)$ exceeds a
+certified upper bound — sound (halt $\Rightarrow$ genuine violation) and complete
+(a real violation has a definite margin and is eventually detected). $\sigma(n)$
+is the clean integer heart and is what we compile; the precision management is
+computable but large and is specified rather than compiled here.
+
+**Could this approach a proof of RH?  No — and the reason is instructive.**
+
+- **A reformulation is not a proof.** "RH $\iff$ this program never halts" restates
+  RH; proving the non-halting *is* proving RH, with nothing gained. The two are
+  logically equivalent, so the encoding transfers all the difficulty and adds no
+  leverage.
+- **Undecidability does not apply.** The general halting problem is undecidable,
+  but RH is a *single fixed instance*; undecidability of the family says nothing
+  about it. There is no "it might be independent" escape here either — RH is
+  $\Pi_1^0$, and a $\Pi_1^0$ statement independent of a sound theory would be
+  *true*, but that still is not a proof.
+- **It discards the structure a proof needs.** The computational encoding throws
+  away the zeta zeros, the explicit formula, and Weil positivity — precisely the
+  analytic machinery every serious attack uses. It is a *syntactic* restatement.
+- **The obstruction is exactly §3B / theory §7.** Certifying non-halting means
+  exhibiting a termination/non-termination certificate — for this family, a
+  monotone height (Lyapunov function). §3B shows the height drift can be zero or
+  balanced and §7 that no monotone height exists for the universal family; that
+  absence is the computational face of RH's hardness. A certificate here would in
+  effect be a proof of RH by analytic means smuggled in.
+
+**Where proof-potential actually lives.** Not on the computational side but on the
+**spectral** one — the Bost–Connes / Connes–Consani programme (§2), Weil positivity
+of the quadratic form. FRACTRAN's contribution to *that* world is computation on
+the shared monoid $\mathbb{N}^{\times}$, not analysis, so it is a companion and an
+instrument, not a proof route. RHGAME's honest value is as (i) a concrete artifact
+— RH as a specific fraction list — and (ii) a member of the *computational lineage*
+that has genuinely served RH: large-scale verification, and the disproof of
+over-strong conjectures (the Mertens conjecture $|M(n)|<\sqrt n$, refuted by
+Odlyzko–te Riele). It searches; it does not prove.
+
+*(The spectral tools of §4 are implemented in `fractran/spectral.py`
+(`laplacian_modes`, `fiedler`, `dispersion_grid`) and the fluid limit of §3C in
+`fractran/continuum.py`; `modes_demo.py` and `continuum_demo.py` confirm
+zero-drift $\leftrightarrow$ height-stability and zero-modes $\leftrightarrow$
+conserved level sets.)*
+
+---
+
 ## References
 
 - **[Bombieri–Gubler 2006]** E. Bombieri, W. Gubler. *Heights in Diophantine Geometry.* Cambridge, 2006.
@@ -237,6 +300,7 @@ orthant boundary conditions. Computed by `fractran/spectral.py`.
 - **[Connes 2024]** A. Connes. *Zeta zeros and prolate wave operators.* 2024. (See also Connes–Consani, *The Scaling Hamiltonian.*)
 - **[David–Alla 2010]** R. David, H. Alla. *Discrete, Continuous, and Hybrid Petri Nets.* Springer, 2010 (continuous Petri nets, David–Alla 1987).
 - **[Lagarias 2002]** J. C. Lagarias. *An elementary problem equivalent to the Riemann hypothesis.* Amer. Math. Monthly 109(6):534–543, 2002.
+- **[Odlyzko–te Riele 1985]** A. M. Odlyzko, H. J. J. te Riele. *Disproof of the Mertens conjecture.* J. Reine Angew. Math. 357:138–160, 1985.
 - **[Ortega et al. 2018]** A. Ortega, P. Frossard, J. Kovačević, J. M. F. Moura, P. Vandergheynst. *Graph signal processing: overview, challenges, and applications.* Proc. IEEE 106(5):808–828, 2018.
 - **[Robin 1984]** G. Robin. *Grandes valeurs de la fonction somme des diviseurs et hypothèse de Riemann.* J. Math. Pures Appl. 63:187–213, 1984.
 - **[Sandryhaila–Moura 2013]** A. Sandryhaila, J. M. F. Moura. *Discrete signal processing on graphs.* IEEE Trans. Signal Process. 61(7):1644–1656, 2013.

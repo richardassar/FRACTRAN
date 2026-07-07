@@ -107,7 +107,9 @@ See `reach_demo.py` for worked examples.
 | `calc.py` / `demos.py` | the calculator and the I/O demo gallery |
 | `serialize.py` | compact binary representation of programs |
 | `reachability.py` | order-free (nondeterministic) evolution: unfoldings, confluence, region flow |
-| `spectral.py` | graph-Fourier / Pontryagin analysis: move dispersion, drift, Newton polytope, and the numerical spectrum of reachability boxes |
+| `spectral.py` | graph-Fourier / Pontryagin analysis: move dispersion, drift, Newton polytope, Laplacian modes, and the numerical spectrum of reachability boxes |
+| `continuum.py` | the fluid limit: density transport on a box (drift/diffusion, mean-height flow) |
+| `rhgame.py` | RH as a halting problem — Robin's inequality; a compiled FRACTRAN `sigma(n)` kernel plus the violation search |
 
 Design notes, the module-by-module tour, the external gallery, and the roadmap
 live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical
