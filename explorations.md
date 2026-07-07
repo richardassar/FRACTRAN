@@ -142,6 +142,90 @@ three completions of the same discrete lattice machine.
 
 ---
 
+## 4. Spectral structure — graph Fourier as the Pontryagin transform
+
+The nondeterministic reachability graph of §3 (fire any applicable fraction) is
+exactly a **multiway system** in Wolfram's sense; doing graph signal processing on
+it is graph Fourier analysis of a FRACTRAN machine [Shuman et al. 2013; Ortega et
+al. 2018; Sandryhaila–Moura 2013]. The point of this section is that on FRACTRAN
+this collapses onto classical harmonic analysis.
+
+**The Cayley graph, and GFT = Pontryagin transform.  [established]**  States form
+the abelian group $G=\bigoplus_p\mathbb{Z}$ and the fractions are a generating set
+of moves $\{\boldsymbol\delta_i\}$, so the natural graph is the Cayley graph of
+$G$: adjacency $A=\sum_i T_{\boldsymbol\delta_i}$ (translations). The $T_{\boldsymbol\delta_i}$
+commute and are simultaneously diagonalized by the characters
+$\chi_{\boldsymbol\theta}(\mathbf e)=e^{2\pi i\langle\boldsymbol\theta,\mathbf e\rangle}$,
+$\boldsymbol\theta\in\hat G=\prod_p\mathbb{T}=\mathbb{T}^{\infty}$. The eigenvalue is the
+**Fourier symbol / dispersion**
+
+$$
+\lambda(\boldsymbol\theta)=\sum_i e^{2\pi i\langle\boldsymbol\theta,\boldsymbol\delta_i\rangle},
+$$
+
+a Laurent polynomial in $z_p=e^{2\pi i\theta_p}$. So **the graph Fourier transform
+of a FRACTRAN system is the Pontryagin transform on $\bigoplus_p\mathbb{Z}$** — the
+GFT eigenvectors are the group characters, the graph spectrum is the phonon
+dispersion of a crystal whose bonds are the fractions. The finite *multiway* graph
+is the guarded, boundary-truncated version of this clean bulk.
+
+This threads through the earlier sections:
+
+1. **Bulk vs boundary.  [established]**  On the full group (the unguarded VAS
+   bulk) the dynamics is translation-invariant and *exactly* Fourier-diagonal
+   (plane waves, dispersion $\lambda$). All computational content — the guards
+   $\mathbf e\ge\boldsymbol\beta$, the priority — is the failure of translation
+   invariance at the **orthant walls**: hard-wall boundary conditions on an
+   otherwise free lattice particle. Undecidability is a *boundary* phenomenon;
+   GFT is the transform that trivializes the bulk so the walls stand out (whence
+   Wiener–Hopf / random walks in a cone).
+
+2. **Dual torus and Kronecker flow.  [established]**  $\hat G=\mathbb{T}^{\infty}$
+   is the character group of $\mathbb{Q}_{>0}$ — the free-part sibling of the
+   $\hat{\mathbb{Z}}$ in Bost–Connes (§2). Under Fourier $v_p\leftrightarrow\tfrac{1}{2\pi i}\partial_{\theta_p}$,
+   so the height / Bost–Connes Hamiltonian becomes
+   $\widehat H=\tfrac{1}{2\pi i}\sum_p(\log p)\,\partial_{\theta_p}$, the generator of a
+   **Kronecker flow on $\mathbb{T}^\infty$** with velocity $(\log p)_p$. Since the
+   $\log p$ are $\mathbb{Q}$-independent the flow is minimal and uniquely ergodic
+   (equidistribution, Weyl), and $e^{it\widehat H}$ is the Bost–Connes time
+   evolution $n\mapsto n^{it}$. Graph Fourier lands the height dynamics on the
+   arithmetic torus.
+
+3. **Low frequencies = the continuum limit.  [established]**  Near $\boldsymbol\theta=0$,
+   $\lambda(\boldsymbol\theta)=|S|+2\pi i\langle\boldsymbol\theta,\sum_i\boldsymbol\delta_i\rangle
+   -2\pi^2\sum_i\langle\boldsymbol\theta,\boldsymbol\delta_i\rangle^2+\cdots$: the first-order
+   term is the **drift** $\sum_i\boldsymbol\delta_i$ (§3B, the Collatz $\tfrac12\log\tfrac34$),
+   the second is the **diffusion** — the advection–diffusion coefficients of the
+   transport PDE (§3C). Low GFT modes are the fluid limit; high modes the machine.
+
+4. **The dispersion is the toric Laurent polynomial.  [established]**  $\lambda(\boldsymbol\theta)=\sum_i z^{\boldsymbol\delta_i}$
+   lives in the coordinate ring of the torus; its **Newton polytope is the convex
+   hull of the moves** and its amoeba is the toric geometry of `theory.md` §6.
+   Spectral (GFT), polyhedral (VAS), and toric (binomial ideals) are one object.
+
+5. **Collatz's diagonalization is $2$-adic (Walsh).  [established]**  The
+   Bernstein–Lagarias conjugacy to the $2$-adic shift *is* a Fourier
+   diagonalization in the $2$-adic character (Walsh) basis — "the GFT of Collatz"
+   is Walsh–Fourier on the $2$-adic completion (§3E).
+
+6. **The multiway graph's GFT (numerical).  [buildable]**  For a finite
+   reachability box, the symmetric graph Laplacian's **zero modes = connected
+   components = conserved-quantity level sets** (the P-invariants, e.g. $v_2+v_3$
+   for $\{2/3,3/2\}$ are the null space); the directed adjacency's **unit-circle
+   eigenvalues = cyclic components** (a length-$\ell$ cycle contributes $\ell$-th
+   roots of unity); and the **spectral gap = mixing rate**. The SCC decomposition
+   of `reachability.analyze_region` is the coarse shadow of this spectrum.
+
+**One line.**  Because FRACTRAN's states are an abelian group and its moves are
+translations, its graph Fourier transform is harmonic analysis on
+$\bigoplus_p\mathbb{Z}$: the bulk diagonalizes to a phonon dispersion (a toric
+Laurent polynomial), the dual is the arithmetic torus where the height runs as an
+ergodic Kronecker flow (the Bost–Connes evolution), the low frequencies give the
+fluid continuum limit, and the computational hardness is pushed entirely into the
+orthant boundary conditions. Computed by `fractran/spectral.py`.
+
+---
+
 ## References
 
 - **[Bombieri–Gubler 2006]** E. Bombieri, W. Gubler. *Heights in Diophantine Geometry.* Cambridge, 2006.
@@ -153,8 +237,12 @@ three completions of the same discrete lattice machine.
 - **[Connes 2024]** A. Connes. *Zeta zeros and prolate wave operators.* 2024. (See also Connes–Consani, *The Scaling Hamiltonian.*)
 - **[David–Alla 2010]** R. David, H. Alla. *Discrete, Continuous, and Hybrid Petri Nets.* Springer, 2010 (continuous Petri nets, David–Alla 1987).
 - **[Lagarias 2002]** J. C. Lagarias. *An elementary problem equivalent to the Riemann hypothesis.* Amer. Math. Monthly 109(6):534–543, 2002.
+- **[Ortega et al. 2018]** A. Ortega, P. Frossard, J. Kovačević, J. M. F. Moura, P. Vandergheynst. *Graph signal processing: overview, challenges, and applications.* Proc. IEEE 106(5):808–828, 2018.
 - **[Robin 1984]** G. Robin. *Grandes valeurs de la fonction somme des diviseurs et hypothèse de Riemann.* J. Math. Pures Appl. 63:187–213, 1984.
+- **[Sandryhaila–Moura 2013]** A. Sandryhaila, J. M. F. Moura. *Discrete signal processing on graphs.* IEEE Trans. Signal Process. 61(7):1644–1656, 2013.
+- **[Shuman et al. 2013]** D. I. Shuman, S. K. Narang, P. Frossard, A. Ortega, P. Vandergheynst. *The emerging field of signal processing on graphs.* IEEE Signal Process. Mag. 30(3):83–98, 2013.
 - **[Watanabe 2009]** S. Watanabe. *Algebraic Geometry and Statistical Learning Theory.* Cambridge, 2009.
 - **[Weil 1952]** A. Weil. *Sur les « formules explicites » de la théorie des nombres.* Comm. Sém. Math. Univ. Lund, 252–265, 1952.
+- **[Wolfram 2020]** S. Wolfram. *A Class of Models with the Potential to Represent Fundamental Physics.* Complex Systems 29(2):107–536, 2020. (Multiway systems.)
 - **[Yedidia–Aaronson 2016]** A. Yedidia, S. Aaronson. *A relatively small Turing machine whose behavior is independent of set theory.* arXiv:1605.04343, 2016. (Also the explicit RH machine.)
 - *Stationary solutions of discrete and continuous Petri nets with priorities.* arXiv:1612.07661.

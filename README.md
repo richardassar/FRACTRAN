@@ -107,6 +107,7 @@ See `reach_demo.py` for worked examples.
 | `calc.py` / `demos.py` | the calculator and the I/O demo gallery |
 | `serialize.py` | compact binary representation of programs |
 | `reachability.py` | order-free (nondeterministic) evolution: unfoldings, confluence, region flow |
+| `spectral.py` | graph-Fourier / Pontryagin analysis: move dispersion, drift, Newton polytope, and the numerical spectrum of reachability boxes |
 
 Design notes, the module-by-module tour, the external gallery, and the roadmap
 live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical
