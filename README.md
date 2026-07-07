@@ -35,13 +35,34 @@ python3 demos.py rule30 --show
 
 ## Tests & demos
 
+Every script is runnable as `python3 <name>`. Core toolchain:
+
 ```sh
-python3 demo.py            # interpreter, streaming I/O, compiler, decompiler
+python3 demo.py            # interpreter, streaming I/O, compiler, decompiler (self-test)
 python3 bench.py           # loop accelerator: exact vs reference, big speedups
 python3 bootstrap_demo.py  # a FRACTRAN self-interpreter, compiled from the toolchain
 python3 io_demo.py         # compiled streaming transducers (doubler, running sum)
-python3 calc_demo.py       # calculator vs Python arithmetic
+```
+
+Arithmetic & representation:
+
+```sh
+python3 calc_demo.py       # the calculator vs Python arithmetic
+python3 dump_calc.py       # print the calculator's 188 fractions (+ save calc_program.fractran)
+python3 prove_calc.py      # re-parse the bare fraction list and run it (it's all fractions)
+python3 gallery_demo.py    # PRIMEGAME (verified) + Lomont self-interpreter encoder
 python3 measure_repr.py    # compact binary format + compression study
+python3 represent.py       # representation-size measurements
+```
+
+Order-free structure, spectra, and the theory threads:
+
+```sh
+python3 reach_demo.py      # unfoldings, confluence, normal forms, region flow
+python3 spectral_demo.py   # move dispersion, drift, Newton polytope, box spectrum
+python3 modes_demo.py      # dispersion amoeba + graph-Fourier modes (Fiedler vector)
+python3 continuum_demo.py  # the fluid limit: density transport at the drift rate
+python3 rhgame_demo.py     # RH as a halting problem: compiled sigma(n) + Robin search
 ```
 
 ## Native core (optional, fast)
@@ -89,6 +110,17 @@ Programmatic API in `fractran/reachability.py`: `reachable`, `analyze`,
 `confluent`, `normal_form`, `region_graph`, `analyze_region`, `render_grid`.
 See `reach_demo.py` for worked examples.
 
+**Draw the graph** — render the reachability graph to a PNG (needs matplotlib):
+
+```sh
+python3 plot_reach.py "1/2 1/3" 72 graph.png       # connected 12-node lattice, drains to 1
+python3 plot_reach.py "3/2 5/2" 4 conflict.png     # branches into normal forms {9,15,25}
+```
+
+Nodes are states (labelled by the integer), green = start, red = halting normal
+form; two-prime programs are laid out on the exponent lattice `(v_p, v_q)` — the
+Hasse diagram. Open the PNG in any image viewer.
+
 ## Architecture
 
 `fractran/` is a dependency-free Python package. The pipeline is:
@@ -107,6 +139,7 @@ See `reach_demo.py` for worked examples.
 | `calc.py` / `demos.py` | the calculator and the I/O demo gallery |
 | `serialize.py` | compact binary representation of programs |
 | `reachability.py` | order-free (nondeterministic) evolution: unfoldings, confluence, region flow |
+| `plot.py` | draw the reachability graph to a PNG (lattice layout for two-prime programs) |
 | `spectral.py` | graph-Fourier / Pontryagin analysis: move dispersion, drift, Newton polytope, Laplacian modes, and the numerical spectrum of reachability boxes |
 | `continuum.py` | the fluid limit: density transport on a box (drift/diffusion, mean-height flow) |
 | `rhgame.py` | RH as a halting problem — Robin's inequality; a compiled FRACTRAN `sigma(n)` kernel plus the violation search |
