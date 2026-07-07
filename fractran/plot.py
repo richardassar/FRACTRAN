@@ -176,6 +176,157 @@ def fiedler_values(nodes, efrac):
     return list(fv)
 
 
+def _sparse_lap(nodes, efrac):
+    import numpy as np
+    import scipy.sparse as sp
+    nodes = list(nodes)
+    idx = {k: i for i, k in enumerate(nodes)}
+    n = len(nodes)
+    rows, cols = [], []
+    for a, b in efrac:
+        if a in idx and b in idx:
+            rows += [idx[a], idx[b]]
+            cols += [idx[b], idx[a]]
+    A = ((sp.csr_matrix((np.ones(len(rows)), (rows, cols)), shape=(n, n)) > 0).astype(float)
+         if rows else sp.csr_matrix((n, n)))
+    deg = np.asarray(A.sum(1)).ravel()
+    L = sp.diags(deg) - A
+    return idx, n, A, deg, L
+
+
+def laplacian_harmonic(nodes, efrac, k):
+    """The k-th graph-Fourier mode (Laplacian eigenvector; k=1 is Fiedler).
+    Higher k = higher graph frequency = finer structure (the Pontryagin modes)."""
+    import numpy as np
+    from scipy.sparse.linalg import eigsh
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    if n < k + 2:
+        return [0.0] * n
+    try:
+        vals, vecs = eigsh(L, k=k + 1, which="SA", tol=1e-3, maxiter=8000)
+        v = vecs[:, np.argsort(vals)[k]]
+    except Exception:
+        v = np.zeros(n)
+    return [float(v[idx[nd]]) for nd in nodes]
+
+
+def chebyshev_response(nodes, efrac, sources, order=12):
+    """Chebyshev-polynomial graph filter T_order(scaled L) applied to a delta at
+    the source -- the GSP spectral-filter/wavelet, localized ~order hops out."""
+    import numpy as np
+    import scipy.sparse as sp
+    from scipy.sparse.linalg import eigsh
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    if n < 3:
+        return [0.0] * n
+    try:
+        lmax = float(eigsh(L, k=1, which="LM", tol=1e-2, maxiter=3000)[0])
+    except Exception:
+        lmax = 2.0 * (deg.max() if n else 1)
+    Ls = (2.0 / max(lmax, 1e-6)) * L - sp.identity(n)
+    x0 = np.zeros(n)
+    for s in sources:
+        if s in idx:
+            x0[idx[s]] = 1.0
+    if x0.sum() == 0:
+        x0[0] = 1.0
+    tprev, tcur = x0, Ls @ x0
+    for _ in range(order - 1):
+        tprev, tcur = tcur, 2 * (Ls @ tcur) - tprev
+    return [float(tcur[idx[nd]]) for nd in nodes]
+
+
+def markov_mode(nodes, efrac):
+    """The slow random-walk (Markov) mode: 2nd eigenvector of the transition
+    operator -- the walk's reaction coordinate (Fiedler for the random walk)."""
+    import numpy as np
+    import scipy.sparse as sp
+    from scipy.sparse.linalg import eigsh
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    if n < 3:
+        return [0.0] * n
+    d = deg.copy(); d[d == 0] = 1.0
+    Dm12 = sp.diags(1.0 / np.sqrt(d))
+    Lsym = sp.identity(n) - Dm12 @ A @ Dm12
+    try:
+        vals, vecs = eigsh(Lsym, k=2, which="SA", tol=1e-3, maxiter=8000)
+        rw = (1.0 / np.sqrt(d)) * vecs[:, np.argsort(vals)[1]]
+    except Exception:
+        rw = np.zeros(n)
+    return [float(rw[idx[nd]]) for nd in nodes]
+
+
+def stationary_dist(nodes, efrac):
+    """Stationary distribution of the random walk (reversible: pi ~ degree)."""
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    tot = deg.sum() or 1.0
+    return [float(deg[idx[nd]] / tot) for nd in nodes]
+
+
+def heat_kernel(nodes, efrac, sources, t=5.0):
+    """Heat diffused from the source, exp(-tL) delta (log-scaled for visibility)."""
+    import numpy as np
+    from scipy.sparse.linalg import expm_multiply
+    idx, n, A, deg, L = _sparse_lap(nodes, efrac)
+    x0 = np.zeros(n)
+    for s in sources:
+        if s in idx:
+            x0[idx[s]] = 1.0
+    if x0.sum() == 0 and n:
+        x0[0] = 1.0
+    try:
+        h = np.log10(np.maximum(expm_multiply(-t * L, x0), 1e-12))
+    except Exception:
+        h = np.zeros(n)
+    return [float(h[idx[nd]]) for nd in nodes]
+
+
+def node_field(nodes, efrac, sources, field):
+    """Dispatch a node-colouring field name to its values (spectral or structural)."""
+    if field == "depth":
+        return node_depths(nodes, efrac, sources)
+    if field == "logn":
+        return logn_values(nodes)
+    if field == "fiedler":
+        return laplacian_harmonic(nodes, efrac, 1)
+    if field.startswith("harmonic"):
+        return laplacian_harmonic(nodes, efrac, int(field[len("harmonic"):]))
+    if field == "chebyshev":
+        return chebyshev_response(nodes, efrac, sources)
+    if field == "markov":
+        return markov_mode(nodes, efrac)
+    if field == "stationary":
+        return stationary_dist(nodes, efrac)
+    if field == "heat":
+        return heat_kernel(nodes, efrac, sources)
+    raise ValueError(f"unknown node field {field!r}")
+
+
+def plot_spectral_gallery(prog, start, outfile, fields, max_states=1000, cols=4, style=STYLE):
+    """Same program lattice, painted by each spectral/structural field -- build the
+    multiway graph and layout once, colour many ways."""
+    import math
+
+    import numpy as np
+
+    nodes, efrac, sources = build_multiway(prog, start, max_states)
+    nodes = list(nodes)
+    pos = graph_layout(nodes, efrac)
+    rows = math.ceil(len(fields) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 5.0, rows * 5.0), facecolor=style.bg)
+    axes = np.atleast_1d(axes).flat
+    for ax, field in zip(axes, fields):
+        draw_graph(ax, nodes, efrac, pos, node_field(nodes, efrac, sources, field), len(prog), style)
+        ax.set_title(field, color=style.title_color, fontsize=13)
+    for ax in list(axes)[len(fields):]:
+        ax.set_facecolor(style.bg)
+        ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(outfile, dpi=style.dpi, facecolor=style.bg, bbox_inches="tight", pad_inches=0.2)
+    plt.close(fig)
+    return outfile
+
+
 def graph_layout(nodes, efrac, seed=1, iterations=80):
     import networkx as nx
     G = nx.Graph()
@@ -223,10 +374,9 @@ def plot_multiway(prog, starts, outfile, max_states=1000, node_by="depth",
     """Render the multiway graph. `node_by` in {"depth","logn","fiedler"} chooses
     the node colouring (fiedler = the graph-Fourier / Pontryagin spectral mode)."""
     nodes, efrac, sources = build_multiway(prog, starts, max_states)
+    nodes = list(nodes)
     pos = graph_layout(nodes, efrac)
-    values = {"depth": lambda: node_depths(nodes, efrac, sources),
-              "logn": lambda: logn_values(nodes),
-              "fiedler": lambda: fiedler_values(nodes, efrac)}[node_by]()
+    values = node_field(nodes, efrac, sources, node_by)
 
     fig, ax = plt.subplots(figsize=(style.figsize, style.figsize), facecolor=style.bg)
     draw_graph(ax, nodes, efrac, pos, values, len(prog), style)
