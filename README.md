@@ -54,6 +54,41 @@ python3 bench_native.py    # ~130x over the pure-Python stepper
 Two modes: **vector** (int64 prime exponents — the fast path) and **canonical**
 (a real GMP integer `n` — the faithful, unbounded oracle).
 
+## Exploring the order-free structure (`reach.py`)
+
+Deterministic FRACTRAN fires the *first* applicable fraction. Drop that priority
+and the fractions become commuting lattice moves; a state then unfolds into a
+whole reachability graph. `reach.py` explores it.
+
+**Unfold from a start state** — fire *any* applicable fraction:
+
+```sh
+python3 reach.py "1/2 1/3" 36      # the grid / distributive lattice (drains to 1)
+python3 reach.py "3/2 5/2" 4       # a resource conflict -> 3 normal forms {9,15,25}
+```
+
+It reports the reachable states and edges; how branches split into **concurrency**
+(independent moves — diamonds that reconverge) vs **conflict** (moves competing
+for a factor — true forks); the **normal forms** (halting states); and whether the
+program is **confluent** (unique normal form, so evaluation order doesn't matter).
+For two-prime programs it draws the reachable set as a grid.
+
+**Evolve a whole region** — every state in a bounded box at once:
+
+```sh
+python3 reach.py "2/3 3/2" --region 2:3,3:3
+```
+
+`--region 2:3,3:3` is the box `0 <= v2 <= 3, 0 <= v3 <= 3`. It reports the
+**sinks** (normal forms), **boundary** states (whose moves leave the box), and
+**cyclic components** — sets of states the flow cycles through. For `{2/3, 3/2}`
+these are the anti-diagonals of constant `v2 + v3`: that sum is conserved (a
+Petri-net *place-invariant*), so the dynamics rotate within each level set.
+
+Programmatic API in `fractran/reachability.py`: `reachable`, `analyze`,
+`confluent`, `normal_form`, `region_graph`, `analyze_region`, `render_grid`.
+See `reach_demo.py` for worked examples.
+
 ## Architecture
 
 `fractran/` is a dependency-free Python package. The pipeline is:
@@ -71,6 +106,7 @@ Two modes: **vector** (int64 prime exponents — the fast path) and **canonical*
 | `bootstrap.py` | a FRACTRAN self-interpreter, compiled from this toolchain |
 | `calc.py` / `demos.py` | the calculator and the I/O demo gallery |
 | `serialize.py` | compact binary representation of programs |
+| `reachability.py` | order-free (nondeterministic) evolution: unfoldings, confluence, region flow |
 
 Design notes, the module-by-module tour, the external gallery, and the roadmap
 live in **[fractran-overview.md](fractran-overview.md)**. The deep theoretical

@@ -22,8 +22,9 @@ For a conflict-free program the reachable set is a distributive lattice
 from __future__ import annotations
 
 from collections import deque
+from itertools import product
 
-from .core import factorize
+from .core import factorize, run, to_int
 
 
 def _applies(state, den_f):
@@ -118,6 +119,121 @@ def as_int(key):
     for p, e in key:
         n *= p**e
     return n
+
+
+# --- confluence and normal forms -----------------------------------------
+
+def confluent(prog) -> bool:
+    """Structurally confluent? Sufficient test: denominators pairwise disjoint.
+
+    If no two fractions share a denominator prime, firing one can never starve
+    another of a needed factor, so every branch is a concurrency diamond (local
+    confluence). Combined with termination this means every state has a UNIQUE
+    normal form, independent of evaluation order — so you can compute it by any
+    single reduction, no graph search needed.
+    """
+    dens = [set(f.den_f) for f in prog]
+    return all(not (dens[a] & dens[b])
+               for a in range(len(dens)) for b in range(a + 1, len(dens)))
+
+
+def normal_form(prog, start, max_steps=1_000_000):
+    """Reduce ``start`` to a halting state by one (deterministic) reduction.
+
+    For a ``confluent`` program this is THE unique normal form, order-independent.
+    For pure-decrement moves it is simply ``start`` with the removed primes
+    projected away. Returns ``(n, halted)``.
+    """
+    state, _steps, status = run(prog, start, max_steps=max_steps)
+    return to_int(state), status == "halt"
+
+
+# --- whole-region ("all states at once") evolution -----------------------
+
+def region_states(bounds):
+    """Every state with exponent of ``p`` in ``[0, bounds[p]]`` for each prime p."""
+    primes = sorted(bounds)
+    for exps in product(*[range(bounds[p] + 1) for p in primes]):
+        yield {p: e for p, e in zip(primes, exps) if e}
+
+
+def region_graph(prog, bounds):
+    """Transition graph over a bounded box of *all* states.
+
+    Returns ``nodes``, within-box ``edges`` (key -> [key]), ``exits`` (key ->
+    number of moves that leave the box), and ``sinks`` (keys where no fraction
+    applies — true normal forms).
+    """
+    inbox = {_key(s): s for s in region_states(bounds)}
+    edges = {k: [] for k in inbox}
+    exits, sinks = {}, []
+    for k, s in inbox.items():
+        applicable = 0
+        for fr in prog:
+            if _applies(s, fr.den_f):
+                applicable += 1
+                nk = _key(_apply(s, fr))
+                if nk in inbox:
+                    edges[k].append(nk)
+                else:
+                    exits[k] = exits.get(k, 0) + 1
+        if applicable == 0:
+            sinks.append(k)
+    return {"nodes": list(inbox), "edges": edges, "exits": exits, "sinks": sinks}
+
+
+def sccs(edges):
+    """Strongly connected components (iterative Kosaraju)."""
+    visited, order = set(), []
+    for root in edges:
+        if root in visited:
+            continue
+        stack = [(root, iter(edges[root]))]
+        visited.add(root)
+        while stack:
+            node, it = stack[-1]
+            for nxt in it:
+                if nxt not in visited:
+                    visited.add(nxt)
+                    stack.append((nxt, iter(edges.get(nxt, ()))))
+                    break
+            else:
+                order.append(node)
+                stack.pop()
+    rev = {k: [] for k in edges}
+    for k, vs in edges.items():
+        for v in vs:
+            rev.setdefault(v, []).append(k)
+    comp, comps = {}, []
+    for node in reversed(order):
+        if node in comp:
+            continue
+        group, stack = [], [node]
+        comp[node] = len(comps)
+        while stack:
+            u = stack.pop()
+            group.append(u)
+            for w in rev.get(u, ()):
+                if w not in comp:
+                    comp[w] = len(comps)
+                    stack.append(w)
+        comps.append(group)
+    return comps
+
+
+def analyze_region(prog, bounds):
+    """Global flow of a finite box: normal-form sinks and cyclic components."""
+    g = region_graph(prog, bounds)
+    cyclic = []
+    for c in sccs(g["edges"]):
+        if len(c) > 1 or (c and c[0] in g["edges"].get(c[0], ())):
+            cyclic.append(sorted(as_int(k) for k in c))
+    return {
+        "states": len(g["nodes"]),
+        "sinks": sorted(as_int(k) for k in g["sinks"]),
+        "cyclic_components": sorted(cyclic),
+        "boundary_states": len(g["exits"]),
+    }
 
 
 def render_grid(seen, p, q):
